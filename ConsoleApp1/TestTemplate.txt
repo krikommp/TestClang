@@ -1,0 +1,27 @@
+#pragma warning disable CS0109
+using System;
+using System.Runtime.CompilerServices;
+
+namespace UnrealEngine
+{
+	public interface <%="I" + type.Name + ": " + (type.BaseTypes.Select(t => $"I{t.ToString()}").Aggregate((cur, next) => $"{cur}, {next}"))%>
+	{
+		unsafe <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr();
+	}
+
+	public unsafe struct <%=type.Name%>Unsafe : I<%=type.Name%>
+	{
+		public const int bufferSize = <%=type.SizeOf%>;
+
+#pragma warning disable CS0649
+		public fixed byte fixedBuffer[bufferSize];
+#pragma warning restore CS0649
+
+		public <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr(){
+			fixed (byte* ptr = fixedBuffer) 
+			{
+				return (<%=type.Name%>Unsafe*)ptr;
+			}
+		}
+	}
+}
