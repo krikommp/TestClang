@@ -3,17 +3,26 @@ using System.IO;
 using CppAst;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace ConsoleApp1
 {
-    class Program
+    public class Program
     {
-        public static void GetBasesRecursive(CppClass type) {
+        public static IEnumerable<CppBaseType> GetBasesRecursive(CppClass type) {
             var outClass = new List<CppBaseType>();
             outClass.AddRange(type.BaseTypes);
-            foreach (var baseType in type.BaseTypes) { 
-                
+            if (outClass.Count != 0)
+            {
+                foreach (var baseType in type.BaseTypes) {
+                    if (baseType.Type.TypeKind == CppTypeKind.StructOrClass)
+                    {
+                        var baseClass = (CppClass)baseType.Type;
+                        outClass.AddRange(GetBasesRecursive(baseClass));
+                    }
+                }
             }
+            return outClass;
         }
         static void Main(string[] args)
         {
@@ -33,7 +42,10 @@ namespace ConsoleApp1
                         var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\TestTemplate.txt");
                         var global = new TemplateEngine.Globals();
                         global.Context.Add("type", parseClass);
+                        global.Assemblies.Add(typeof(Program).Assembly);
+                        global.Assemblies.Add(typeof(Regex).Assembly);
                         global.Namespaces.Add("System.Linq");
+                        global.Namespaces.Add("System.Text.RegularExpressions");
                         var o = TemplateEngine.CSharpTemplate.Compile<string>(templateFileContent, global);
                         Console.WriteLine(o);
                     }

@@ -1,51 +1,39 @@
 ﻿using System;
 using System.IO;
-using CppAst;
-using System.Linq;
-using System.Collections.Generic;
+using ClangSharp.Interop;
 
 namespace ConsoleApp3
 {
     class Program
     {
-        public static void GetBasesRecursive(CppClass type)
-        {
-            var outClass = new List<CppBaseType>();
-            outClass.AddRange(type.BaseTypes);
-            foreach (var baseType in type.BaseTypes)
-            {
-
-            }
-        }
+        private const CXTranslationUnit_Flags defaultTranslationUnitFlags =
+            CXTranslationUnit_Flags.CXTranslationUnit_IncludeAttributedTypes |
+            CXTranslationUnit_Flags.CXTranslationUnit_VisitImplicitAttributes |
+            CXTranslationUnit_Flags.CXTranslationUnit_SkipFunctionBodies;
         static void Main(string[] args)
         {
             var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
             var fileName = "CoreUObject.cpp";
-            var content = "#include \"Public/CoreUObject.h\"";
-            var options = new CppParserOptions();
-            options.ParseSystemIncludes = false;
-            options.AdditionalArguments.AddRange(lines);
-            var compilation = CppParser.Parse(content, options, fileName);
-            if (!compilation.HasErrors)
+            var fileContent = "#include \"Public/CoreUObject.h\"";
+
+            using var unsavedFile = CXUnsavedFile.Create(fileName, fileContent);
+            var unsavedFiles = new[] { unsavedFile };
+            var index = CXIndex.Create();
+            var translationUnit = CXTranslationUnit.Parse(index, fileName, lines, unsavedFiles,
+                defaultTranslationUnitFlags);
+            if (translationUnit.NumDiagnostics != 0)
             {
-                foreach (var parseClass in compilation.Classes)
+                for (uint i = 0; i < translationUnit.NumDiagnostics; ++i)
                 {
-                    if (parseClass.Name.Equals("UClass"))
+                    var diagnostic = translationUnit.GetDiagnostic(i);
+                    if (diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Error)
                     {
-                        var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\TestTemplate.txt");
-                        var global = new TemplateEngine.Globals();
-                        global.Context.Add("type", parseClass);
-                        global.Namespaces.Add("System.Linq");
-                        var o = TemplateEngine.CSharpTemplate.Compile<string>(templateFileContent, global);
-                        Console.WriteLine(o);
+                        Console.WriteLine( diagnostic.ToString());
                     }
-                }
-            }
-            else
-            {
-                foreach (var message in compilation.Diagnostics.Messages)
-                {
-                    Console.WriteLine(message);
+                    else
+                    {
+                        Console.WriteLine( diagnostic.ToString());
+                    }
                 }
             }
         }

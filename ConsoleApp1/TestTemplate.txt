@@ -23,5 +23,33 @@ namespace UnrealEngine
 				return (<%=type.Name%>Unsafe*)ptr;
 			}
 		}
+		<%foreach (var baseType in ConsoleApp1.Program.GetBasesRecursive(type)){%>
+		public <%=baseType.Type.GetDisplayName()%>Unsafe* Get<%=baseType.Type.GetDisplayName()%>Ptr()
+		{
+		    fixed(byte* ptr = fixedBuffer) {
+		        return (<%=baseType.Type.GetDisplayName()%>Unsafe*)Ptr;
+		    }
+		}
+		<%}%>
 	}
+	<%if(Regex.IsMatch(type.Name, "^U[A-Z]")){%> <%var baseClass = type.BaseTypes.FirstOrDefault(); var isRoot = baseClass == null; var supers = new List<string>(); if(!isRoot) { supers.Add(baseClass.Type.GetDisplayName()); } supers.Add($"I{type.Name}");%> 
+	public partial class <%=isRoot? ($"{type.Name}{supers.Aggregate(" : IDisposable", (cur, next) => $"{cur}, {next}")}") : ($"{type.Name}{(supers.Count == 0 ? "" : $" : {supers.Aggregate((cur, next) => $"{cur}, {next}")}")}") %>
+	{
+	    public unsafe <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr() 
+	    {
+	        return (<%=type.Name%>Unsafe*)nativePtr;
+	    }
+	    <%if(isRoot){%>
+	    protected unsafe void* nativePtr;
+	    public unsafe void Dispose()
+	    {
+	        UObjectMethods.Release((UObjectUnsafe*)nativePtr);
+	    }
+	    unsafe ~<%=type.Name%>
+	    {
+	        Dispose();
+	    }
+	    <%}%>
+	}
+	<%}%>
 }
