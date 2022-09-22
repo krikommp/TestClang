@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using ClangSharp.Interop;
 
@@ -12,27 +13,27 @@ namespace ConsoleApp3
             CXTranslationUnit_Flags.CXTranslationUnit_SkipFunctionBodies;
         static void Main(string[] args)
         {
-            var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
-            var fileName = "CoreUObject.cpp";
-            var fileContent = "#include \"Public/CoreUObject.h\"";
+            var lines = new List<string>();
+            var fileName = "main.cpp";
+            var fileContent = "#include <iostream> int main() { std::cout << dd << std::endl; return 0; }";
 
             using var unsavedFile = CXUnsavedFile.Create(fileName, fileContent);
             var unsavedFiles = new[] { unsavedFile };
             var index = CXIndex.Create();
-            var translationUnit = CXTranslationUnit.Parse(index, fileName, lines, unsavedFiles,
+            var translationUnit = CXTranslationUnit.Parse(index, fileName, lines.ToArray(), unsavedFiles,
                 defaultTranslationUnitFlags);
             if (translationUnit.NumDiagnostics != 0)
             {
                 for (uint i = 0; i < translationUnit.NumDiagnostics; ++i)
                 {
                     var diagnostic = translationUnit.GetDiagnostic(i);
-                    if (diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Error)
+                    if (diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Error || diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Fatal)
                     {
-                        Console.WriteLine( diagnostic.ToString());
+                        Console.WriteLine($"Error {diagnostic.ToString()}");
                     }
                     else
                     {
-                        Console.WriteLine( diagnostic.ToString());
+                        Console.WriteLine($"Warning {diagnostic.ToString()}");
                     }
                 }
             }
