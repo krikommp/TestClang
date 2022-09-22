@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using ClangSharp.Interop;
+using CppAst;
 
 namespace ConsoleApp3
 {
@@ -13,27 +14,25 @@ namespace ConsoleApp3
             CXTranslationUnit_Flags.CXTranslationUnit_SkipFunctionBodies;
         static void Main(string[] args)
         {
-            var lines = new List<string>();
-            var fileName = "main.cpp";
-            var fileContent = "#include <iostream> int main() { std::cout << dd << std::endl; return 0; }";
-
-            using var unsavedFile = CXUnsavedFile.Create(fileName, fileContent);
-            var unsavedFiles = new[] { unsavedFile };
-            var index = CXIndex.Create();
-            var translationUnit = CXTranslationUnit.Parse(index, fileName, lines.ToArray(), unsavedFiles,
-                defaultTranslationUnitFlags);
-            if (translationUnit.NumDiagnostics != 0)
+            var lines = new string[0];
+            var fileName = "CoreUObject.cpp";
+            var content = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp3\Test.cpp");
+            var options = new CppParserOptions();
+            options.ParseSystemIncludes = false;
+            options.AdditionalArguments.AddRange(lines);
+            var compilation = CppParser.Parse(content, options, fileName);
+            foreach (var message in compilation.Diagnostics.Messages)
             {
-                for (uint i = 0; i < translationUnit.NumDiagnostics; ++i)
+                Console.WriteLine($"{message.Type.ToString()}: {message.ToString()}");
+            }
+
+            if (!compilation.HasErrors)
+            {
+                foreach (var cppClass in compilation.Classes)
                 {
-                    var diagnostic = translationUnit.GetDiagnostic(i);
-                    if (diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Error || diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Fatal)
+                    foreach (var cppClassFunction in cppClass.Functions)
                     {
-                        Console.WriteLine($"Error {diagnostic.ToString()}");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Warning {diagnostic.ToString()}");
+                        Console.WriteLine(cppClassFunction.Name);
                     }
                 }
             }
