@@ -1,67 +1,70 @@
 ﻿using System;
 using System.IO;
+using CppAst;
 using System.Linq;
-using ClangSharp.Interop;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
-namespace ConsoleApp3
+namespace ConsoleApp1
 {
-    unsafe class Program
+    public class Program
     {
-        private const CXTranslationUnit_Flags defaultTranslationUnitFlags =
-            CXTranslationUnit_Flags.CXTranslationUnit_IncludeAttributedTypes |
-            CXTranslationUnit_Flags.CXTranslationUnit_VisitImplicitAttributes |
-            CXTranslationUnit_Flags.CXTranslationUnit_SkipFunctionBodies;
-
-        public static CXChildVisitResult VisitTranslationUnit(CXCursor cursor, CXCursor parent, void* data)
-        {
-            if (cursor.Location.IsInSystemHeader)
+        public static IEnumerable<CppBaseType> GetBasesRecursive(CppClass type) {
+            var outClass = new List<CppBaseType>();
+            outClass.AddRange(type.BaseTypes);
+            if (outClass.Count != 0)
             {
-                return CXChildVisitResult.CXChildVisit_Continue;
+                foreach (var baseType in type.BaseTypes) {
+                    if (baseType.Type.TypeKind == CppTypeKind.StructOrClass)
+                    {
+                        var baseClass = (CppClass)baseType.Type;
+                        outClass.AddRange(GetBasesRecursive(baseClass));
+                    }
+                }
             }
-            Console.WriteLine($"Cursor: {cursor} of kind {cursor.kind}");
-            return CXChildVisitResult.CXChildVisit_Recurse;
+            return outClass;
         }
-
         static void Main(string[] args)
         {
-            var lines = new string[]
+            var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
+            var fileName = "CoreUObject.cpp";
+            var content = "#include \"Public/CoreUObject.h\"";
+            var options = new CppParserOptions();
+            options.ParseSystemIncludes = false;
+            options.AdditionalArguments.AddRange(lines);
+            options.AdditionalArguments.AddRange(new string[]
             {
                 "-isystem/usr/local/opt/llvm/bin/../include/c++/v1",
                 "-isystem/usr/local/Cellar/llvm/14.0.6_1/lib/clang/14.0.6/include",
                 "-isystem/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/include",
                 "-F/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/System/Library/Frameworks",
+                "-Wno-elaborated-enum-base",
                 "-x",
-                "objective-c++",
-            }.Union(File.ReadAllLines(@"/Users/admin/Documents/HookTest/TestClang/ConsoleApp1/3.txt"));
-            
-            var fileName = "CoreUObject.h";
-            var fileContent = "#include \"Public/CoreUObject.h\"";
-            // var fileContent = File.ReadAllText(@"/Users/admin/Documents/HookTest/TestClang/ConsoleApp3/header.hpp");
-            // var fileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp3\header.hpp");
-            // var fileContent = File.ReadAllText(@"/home/kriko/TestClang/ConsoleApp3/header.hpp");
-
-            using var unsavedFile = CXUnsavedFile.Create(fileName, fileContent);
-            var unsavedFiles = new[] { unsavedFile };
-            var index = CXIndex.Create();
-            var translationUnit = CXTranslationUnit.Parse(index, fileName, lines.ToArray(), unsavedFiles,
-                defaultTranslationUnitFlags);
-            bool hasError = false;
-            if (translationUnit.NumDiagnostics != 0)
+                "objective-c",
+            });
+            var compilation = CppParser.Parse(content, options, fileName);
+            if (!compilation.HasErrors)
             {
-                for (uint i = 0; i < translationUnit.NumDiagnostics; ++i)
+                foreach (var parseClass in compilation.Classes)
                 {
-                    var diagnostic = translationUnit.GetDiagnostic(i);
-                    Console.WriteLine($"{diagnostic.Severity}: {diagnostic.Location} {diagnostic}");
-                    if (diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Error ||
-                        diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Fatal)
+                    if (parseClass.Name.Equals("UClass"))
                     {
-                        hasError = true;
+                        var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\TestTemplate.txt");
+                        var global = new TemplateEngine.Globals();
+                        global.Context.Add("type", parseClass);
+                        global.Assemblies.Add(typeof(Program).Assembly);
+                        global.Assemblies.Add(typeof(Regex).Assembly);
+                        global.Namespaces.Add("System.Linq");
+                        global.Namespaces.Add("System.Text.RegularExpressions");
+                        var o = TemplateEngine.CSharpTemplate.Compile<string>(templateFileContent, global);
+                        Console.WriteLine(o);
                     }
                 }
             }
-            if (!hasError)
-            {
-                translationUnit.Cursor.VisitChildren(VisitTranslationUnit, clientData: default);
+            else {
+                foreach (var message in compilation.Diagnostics.Messages) {
+                    Console.WriteLine(message);
+                } 
             }
         }
     }

@@ -14,7 +14,7 @@ namespace ConsoleApp3
 
         public static CXChildVisitResult VisitTranslationUnit(CXCursor cursor, CXCursor parent, void* data)
         {
-            Console.WriteLine($"Cursor: {cursor} of kind {cursor.kind}");
+            Console.WriteLine($"Cursor: {cursor} of kind {cursor.kind}");;
             return CXChildVisitResult.CXChildVisit_Recurse;
         }
 
