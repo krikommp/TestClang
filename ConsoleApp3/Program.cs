@@ -4,17 +4,25 @@ using ClangSharp.Interop;
 
 namespace ConsoleApp3
 {
-    class Program
+    unsafe class Program
     {
         private const CXTranslationUnit_Flags defaultTranslationUnitFlags =
             CXTranslationUnit_Flags.CXTranslationUnit_IncludeAttributedTypes |
             CXTranslationUnit_Flags.CXTranslationUnit_VisitImplicitAttributes |
             CXTranslationUnit_Flags.CXTranslationUnit_SkipFunctionBodies;
+
+        public static CXChildVisitResult VisitTranslationUnit(CXCursor cursor, CXCursor parent, void* data)
+        {
+            Console.WriteLine($"Cursor: {cursor} of kind {cursor.kind}");
+            return CXChildVisitResult.CXChildVisit_Recurse;
+        }
+
         static void Main(string[] args)
         {
-            var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
+            var lines = new string[] { };
             var fileName = "CoreUObject.cpp";
-            var fileContent = "#include \"Public/CoreUObject.h\"";
+            var fileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp3\header.hpp");
+            // var fileContent = File.ReadAllText(@"/home/kriko/TestClang/ConsoleApp3/header.hpp");
 
             using var unsavedFile = CXUnsavedFile.Create(fileName, fileContent);
             var unsavedFiles = new[] { unsavedFile };
@@ -36,6 +44,8 @@ namespace ConsoleApp3
                     }
                 }
             }
+            Console.WriteLine($"has error {translationUnit.NumDiagnostics}");
+            translationUnit.Cursor.VisitChildren(VisitTranslationUnit, clientData: default);
         }
     }
 }
