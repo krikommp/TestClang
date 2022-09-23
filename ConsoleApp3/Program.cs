@@ -21,6 +21,7 @@ namespace ConsoleApp3
         static void Main(string[] args)
         {
             // var commandLine = File.ReadAllLines(@"/Users/admin/Documents/HookTest/TestClang/ConsoleApp1/3.txt");
+            // non-defining declaration of enumeration with a fixed underlying type is only permitted as a standalone declaration; missing list of enumerators?
             var lines = new string[]
             {
                 "-isystem/usr/local/opt/llvm/bin/../include/c++/v1",
