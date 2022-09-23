@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using ClangSharp.Interop;
-using CppAst;
 
 namespace ConsoleApp3
 {
@@ -14,25 +12,27 @@ namespace ConsoleApp3
             CXTranslationUnit_Flags.CXTranslationUnit_SkipFunctionBodies;
         static void Main(string[] args)
         {
-            var lines = new string[0];
+            var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
             var fileName = "CoreUObject.cpp";
-            var content = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp3\Test.cpp");
-            var options = new CppParserOptions();
-            options.ParseSystemIncludes = false;
-            options.AdditionalArguments.AddRange(lines);
-            var compilation = CppParser.Parse(content, options, fileName);
-            foreach (var message in compilation.Diagnostics.Messages)
-            {
-                Console.WriteLine($"{message.Type.ToString()}: {message.ToString()}");
-            }
+            var fileContent = "#include \"Public/CoreUObject.h\"";
 
-            if (!compilation.HasErrors)
+            using var unsavedFile = CXUnsavedFile.Create(fileName, fileContent);
+            var unsavedFiles = new[] { unsavedFile };
+            var index = CXIndex.Create();
+            var translationUnit = CXTranslationUnit.Parse(index, fileName, lines, unsavedFiles,
+                defaultTranslationUnitFlags);
+            if (translationUnit.NumDiagnostics != 0)
             {
-                foreach (var cppClass in compilation.Classes)
+                for (uint i = 0; i < translationUnit.NumDiagnostics; ++i)
                 {
-                    foreach (var cppClassFunction in cppClass.Functions)
+                    var diagnostic = translationUnit.GetDiagnostic(i);
+                    if (diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Error)
                     {
-                        Console.WriteLine(cppClassFunction.Name);
+                        Console.WriteLine( diagnostic.ToString());
+                    }
+                    else
+                    {
+                        Console.WriteLine( diagnostic.ToString());
                     }
                 }
             }

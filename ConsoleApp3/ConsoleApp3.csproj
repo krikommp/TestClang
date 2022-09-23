@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ClCompile Include="Test.cpp" />
+    <None Include="header.hpp" />
   </ItemGroup>
 
 </Project>
