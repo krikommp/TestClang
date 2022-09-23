@@ -98,12 +98,12 @@ namespace CppAst
             {
                 arguments.Add("-xc++");
             }
-
-            if (!arguments.Any(x => x.StartsWith("--target=")))
-            {
-                arguments.Add($"--target={GetTripleFromOptions(options)}");
-            }
-
+            
+            // if (!arguments.Any(x => x.StartsWith("--target=")))
+            // {
+            //     arguments.Add($"--target={GetTripleFromOptions(options)}");
+            // }
+            //
             if (options.ParseComments)
             {
                 arguments.Add("-fparse-all-comments");
