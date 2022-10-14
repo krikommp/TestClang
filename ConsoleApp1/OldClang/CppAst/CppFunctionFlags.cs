@@ -61,5 +61,10 @@ namespace CppAst
         /// This is a variadic function (has `...` parameter)
         /// </summary>
         Variadic = 1 << 8,
+        
+        /// <summary>
+        /// This is a static function
+        /// </summary>
+        Static = 1 << 9,
     }
 }

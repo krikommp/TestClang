@@ -50,6 +50,38 @@ namespace UnrealEngine
 	        Dispose();
 	    }
 	    <%}%>
+        <%foreach(var cppFunction in type.Functions){%> <%if ((cppFunction.Flags & CppFunctionFlags.Static) != 0 && ConsoleApp1.Program.CanExport(type, cppFunction)) {%> <%var returnType = ConsoleApp1.Program.ToSharpType(cppFunction.ReturnType, false);%>
+            public new static <%=returnType%> <%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToParams(cppFunction, true, false, false, true, true)%>) 
+            {
+                <%=(returnType == "void") ? "" : "return"%> <%=type.Name%>Methods.<%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToInvokeParams(cppFunction, true, false)%>);
+            }
+        <%}%> <%}%>
 	}
 	<%}%>
+	public static partial class <%=type.Name%>Methods
+	{
+	    <%foreach(var method in type.Functions){%> <%if(ConsoleApp1.Program.CanExport(type, method)) {%> <%var unsafeReturnType = ConsoleApp1.Program.ToSharpType(method.ReturnType); var returnType = ConsoleApp1.Program.ToSharpType(method.ReturnType, false); var bStatic = ((method.Flags & CppFunctionFlags.Static) != 0);%>
+	    [MethodImpl(MethodImplOptions.InternalCall)]
+	    public static extern unsafe <%=unsafeReturnType%> <%=(bStatic ? "unsafe_" : "")%><%=method.Name%>(<%=bStatic ? "" : type.Name + "Unsafe* inThis"%><%=ConsoleApp1.Program.ToParams(method, bStatic, true, false, true, true)%>);
+	    <%if(!bStatic){%>
+	    public static unsafe <%=unsafeReturnType%> unsafe_<%=method.Name%>(this I<%=type.Name%> inThis<%=ConsoleApp1.Program.ToParams(method, false, true, false, true, true)%>)
+	    {
+	        var nativePtr = inThis.Get<%=type.Name%>Ptr();
+	        if (nativePtr == null) throw new NullReferenceException();
+	        <%=(unsafeReturnType == "void") ? "" : "return"%> <%=method.Name%>(nativePtr<%=ConsoleApp1.Program.ToInvokeParams(method, false, true)%>);
+	    }
+	    <%}%> 
+	    public static unsafe <%=returnType%> <%=method.Name%>(<%=(bStatic ? "" : $"this I{type.Name} inThis")%><%=ConsoleApp1.Program.ToParams(method, bStatic, false, false, true, true)%>)
+	    {
+	        <%if(!bStatic){%>
+	        var nativePtr = inThis.Get<%=type.Name%>Ptr();
+	        if (nativePtr == null) throw new NullReferenceException();
+	        <%}%>
+	        <%=(returnType == "void") ? "" : ((returnType == unsafeReturnType) ? "return" : "var ret =")%> <%=bStatic ? "unsafe_" : ""%><%=method.Name%>(<%=bStatic ? "" : "nativePtr"%><%=ConsoleApp1.Program.ToInvokeParams(method, bStatic, false)%>);
+	        <%if(returnType != unsafeReturnType){%>
+	        return ret == null ? null : ret->As<<%=returnType%>>();
+	        <%}%>
+	    }
+	    <%}%> <%}%>
+	}
 }

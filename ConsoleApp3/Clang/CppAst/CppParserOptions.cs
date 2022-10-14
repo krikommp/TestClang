@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace CppAst
 {
@@ -149,6 +150,49 @@ namespace CppAst
             newOptions.AdditionalArguments = new List<string>(AdditionalArguments);
 
             return newOptions;
+        }
+        public CppParserOptions ConfigureForWithClangSystemInclude()
+        {
+            Func<string, string[]> parseClangIncludePath = context =>
+            {
+                string[] lines = context.Split(Environment.NewLine.ToCharArray());
+                bool beginParse = false;
+                List<string> systemIncludePath = new List<string>();
+                foreach (var line in lines)
+                {
+                    if (Regex.IsMatch(line, @"#include\s<...>\ssearch\sstarts\shere:"))
+                    {
+                        beginParse = true;
+                        continue;
+                    }
+
+                    if (Regex.IsMatch(line, @"End of search list."))
+                    {
+                        beginParse = false;
+                        continue;
+                    }
+
+                    if (beginParse && !String.IsNullOrWhiteSpace(line))
+                    {
+                        var path = line.Trim();
+                        if (path.EndsWith("Frameworks"))
+                        {
+                            path = $"-F{path}";
+                        }
+                        else
+                        {
+                            path = $"-isystem{path}";
+                        }
+                        systemIncludePath.Add(path);
+                    }
+                }
+                return systemIncludePath.ToArray();
+            };
+            // string clangPath = "C:\\Program Files\\LLVM\\bin\\clang.exe"; 
+            // string result = CppUtils.RunToolAndCaptureOutput(clangPath, "-c C:\\Users\\chenyifei\\Desktop\\Clang\\main.cpp -v");
+            // this.AdditionalArguments.AddRange(parseClangIncludePath(result));
+            
+            return this;
         }
 
         /// <summary>

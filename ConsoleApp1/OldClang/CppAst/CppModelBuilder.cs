@@ -1138,6 +1138,10 @@ namespace CppAst
             {
                 cppFunction.Flags |= CppFunctionFlags.Pure | CppFunctionFlags.Virtual;
             }
+            if (cursor.CXXMethod_IsStatic)
+            {
+                cppFunction.Flags |= CppFunctionFlags.Static;
+            }
 
             // Gets the return type
             var returnType = GetCppType(cursor.ResultType.Declaration, cursor.ResultType, cursor, data);
