@@ -18,7 +18,8 @@ namespace UnrealEngine
 		public fixed byte fixedBuffer[bufferSize];
 #pragma warning restore CS0649
 
-		public <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr(){
+		public <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr()
+		{
 			fixed (byte* ptr = fixedBuffer) 
 			{
 				return (<%=type.Name%>Unsafe*)ptr;
@@ -52,10 +53,10 @@ namespace UnrealEngine
 	    }
 	    <%}%>
         <%foreach(var cppFunction in type.Functions){%> <%if ((cppFunction.Flags & CppFunctionFlags.Static) != 0 && ConsoleApp1.Program.CanExport(type, cppFunction)) {%> <%var returnType = ConsoleApp1.Program.ToSharpType(cppFunction.ReturnType, false);%>
-            public new static <%=returnType%> <%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToParams(cppFunction, true, false, false, true, true)%>) 
-            {
-                <%=(returnType == "void") ? "" : "return"%> <%=type.Name%>Methods.<%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToInvokeParams(cppFunction, true, false)%>);
-            }
+        public new static <%=returnType%> <%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToParams(cppFunction, true, false, false, true, true)%>) 
+        {
+            <%=(returnType == "void") ? "" : "return"%> <%=type.Name%>Methods.<%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToInvokeParams(cppFunction, true, false)%>);
+        }
         <%}%> <%}%>
 	}
 	<%}%>

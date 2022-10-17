@@ -298,7 +298,7 @@ namespace ConsoleApp1
             {
                 foreach (var parseClass in compilation.Classes)
                 {
-                    if (parseClass.Name.Equals("UObjectBaseUtility"))
+                    if (parseClass.Name.Equals("UClass"))
                     {
                         functionWhiteList.Add("GetName");
                         functionWhiteList.Add("GetPathName");
