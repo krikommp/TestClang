@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using ClangSharp.Interop;
 using ConsoleApp1.TemplateEngine;
 using CppAst;
+using Microsoft.CodeAnalysis;
 
 namespace ConsoleApp1
 {
@@ -116,12 +117,44 @@ namespace ConsoleApp1
         static public readonly HashSet<string> exportedEnumTypes = new HashSet<string>();
         static public readonly Dictionary<string, CppType> exportedEnumTypesMap = new Dictionary<string, CppType>();
 
-        public static IEnumerable<CppBaseType> GetBasesRecursive(CppClass type) {
+        public delegate IEnumerable<CppBaseType> BasesGetter(CppType cppType);
+
+        static public BasesGetter basesGetter;
+
+        public static IEnumerable<CppBaseType> GetBases(CppType cppType)
+        {
             var outClass = new List<CppBaseType>();
-            outClass.AddRange(type.BaseTypes);
+            if (cppType.TypeKind == CppTypeKind.StructOrClass && cppType is CppClass cppClass)
+            {
+                foreach (var baseType in cppClass.BaseTypes)
+                {
+                    outClass.Add(baseType);
+                }
+            }
+
+            return outClass;
+        }
+
+        public static IEnumerable<CppBaseType> GetBasesRecursive(CppClass type)
+        {
+            var outClass = new List<CppBaseType>();
+            var bases = basesGetter?.Invoke(type);
+            if (bases != null)
+            {
+                foreach (var baseType in bases)
+                {
+                    if (baseType.Type is CppClass baseClass)
+                    {
+                        if (baseClass.TemplateParameters.Count == 0)
+                        {
+                            outClass.Add(baseType);
+                        }
+                    }
+                }
+            }
             if (outClass.Count != 0)
             {
-                foreach (var baseType in type.BaseTypes) {
+                foreach (var baseType in bases) {
                     if (baseType.Type.TypeKind == CppTypeKind.StructOrClass)
                     {
                         var baseClass = (CppClass)baseType.Type;
@@ -285,6 +318,25 @@ namespace ConsoleApp1
             return ret;
         }
 
+        public static void Generate(CppType type)
+        {
+            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\TestTemplate.txt");
+            var global = new Globals(); 
+            global.Context.Add("type", type);
+            global.Assemblies.Add(typeof(Program).Assembly);
+            global.Assemblies.Add(typeof(Regex).Assembly);
+            global.Namespaces.Add("System.Linq");
+            global.Namespaces.Add("System.Text.RegularExpressions");
+            var o = CSharpTemplate.Compile<string>(templateFileContent, global);
+            string filename = @"C:\Users\chenyifei\Documents\Test\" + type.GetDisplayName() + ".cs";
+            FileStream fs = File.Create(filename);
+            fs.Close();
+            StreamWriter sw = new StreamWriter(filename);
+            sw.WriteLine(o);
+            sw.Flush();
+            sw.Close();
+        }
+
         public static void TestTemplate()
         {
             var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
@@ -294,34 +346,46 @@ namespace ConsoleApp1
             options.ParseSystemIncludes = false;
             options.AdditionalArguments.AddRange(lines);
             var compilation = CppParser.Parse(content, options, fileName);
+            functionWhiteList.Add("GetName");
+            functionWhiteList.Add("GetPathName");
+            functionWhiteList.Add("GetFullName");
+            functionWhiteList.Add("StaticClass");
+            functionWhiteList.Add("GetDefaultObject");
+            functionWhiteList.Add("GetClass");
             if (!compilation.HasErrors)
             {
-                foreach (var parseClass in compilation.Classes)
+                basesGetter = GetBases;
+                CppType typeField = null, typeProperty = null;
+                List<CppType> declProps = new List<CppType>();
+                foreach (var  parseClass in compilation.Classes)
                 {
-                    if (Regex.IsMatch(parseClass.Name, "^U[A-Z]"))
+                    if (parseClass.Name.Equals("FField"))
                     {
-                        functionWhiteList.Add("GetName");
-                        functionWhiteList.Add("GetPathName");
-                        functionWhiteList.Add("GetFullName");
-                        functionWhiteList.Add("StaticClass");
-                        functionWhiteList.Add("GetDefaultObject");
-                        functionWhiteList.Add("GetClass");
-                        var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\TestTemplate.txt");
-                        var global = new Globals(); 
-                        global.Context.Add("type", parseClass);
-                        global.Assemblies.Add(typeof(Program).Assembly);
-                        global.Assemblies.Add(typeof(Regex).Assembly);
-                        global.Namespaces.Add("System.Linq");
-                        global.Namespaces.Add("System.Text.RegularExpressions");
-                        var o = CSharpTemplate.Compile<string>(templateFileContent, global);
-                        string filename = @"C:\Users\chenyifei\Documents\Test\" + parseClass.Name + ".cs";
-                        FileStream fs = File.Create(filename);
-                        fs.Close();
-                        StreamWriter sw = new StreamWriter(filename);
-                        sw.WriteLine(o);
-                        sw.Flush();
-                        sw.Close();
+                        typeField = parseClass;
+                    }else if (parseClass.Name.Equals("FProperty"))
+                    {
+                        typeProperty = parseClass;
+                    }else if (Regex.IsMatch(parseClass.Name, "^F.*Property$"))
+                    {
+                        declProps.Add(parseClass);
+                    }else if (Regex.IsMatch(parseClass.Name, "^U[A-Z]"))
+                    {
+                        Generate(parseClass);
                     }
+                }
+                
+                Generate(typeField);
+                basesGetter = type => type.GetDisplayName() switch
+                {
+                    "FField" => null,
+                    "FProperty" => new []{ new CppBaseType(typeField) },
+                    _ => new []{ new CppBaseType(typeProperty) }
+                };
+                Generate(typeProperty);
+
+                foreach (var declProp in declProps)
+                {
+                    Generate(declProp);
                 }
             }
             else {

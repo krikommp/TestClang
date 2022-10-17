@@ -2,10 +2,10 @@
 #pragma warning disable CS0109
 using System;
 using System.Runtime.CompilerServices;
-
+// ConsoleApp1.Program.basesGetter.Invoke(type)
 namespace UnrealEngine
 {
-	public interface <%="I" + type.Name%><%=type.BaseTypes.Any() ? (": " + (type.BaseTypes.Select(t => $"I{t.ToString()}").Aggregate((cur, next) => $"{cur}, {next}"))) : ""%>
+	public interface <%="I" + type.Name%><%=(ConsoleApp1.Program.basesGetter != null && ConsoleApp1.Program.basesGetter.Invoke(type).Any()) ? (": " + (ConsoleApp1.Program.basesGetter.Invoke(type).Select(t => $"I{t.ToString()}").Aggregate((cur, next) => $"{cur}, {next}"))) : ""%>
 	{
 		unsafe <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr();
 	}
