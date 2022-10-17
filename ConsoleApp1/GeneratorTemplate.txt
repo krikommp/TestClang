@@ -2,6 +2,5 @@
 
 inline void OnRegister<%=moduleName%>InternalCalls() {
     <%foreach(var type in types) {%> <%foreach(var method in type.Functions){%> <%if(ConsoleApp1.Program.CanExport(type, method)){%> <%var bStatic = ((method.Flags & CppFunctionFlags.Static) != 0);%>
-    bj_sharp_add_internal_overloaded("UnrealEngine.<%=type.Name%>Methods::<%=bStatic ? "unsafe_" : ""%><%=method.Name%>(<%=bStatic ? "" : $"UnrealEngine.{type.Name}Unsafe*"%><%=ConsoleApp1.Program.ToParams(method, bStatic, true, true, false)%>)", <%=ConsoleApp1.Program.GetPrototype(type, method)%>, &<%=type.Name%>::<%=method.Name%>);
-    <%}%> <%}%> <%}%>
+    bj_sharp_add_internal_overloaded("UnrealEngine.<%=type.Name%>Methods::<%=bStatic ? "unsafe_" : ""%><%=method.Name%>(<%=bStatic ? "" : $"UnrealEngine.{type.Name}Unsafe*"%><%=ConsoleApp1.Program.ToParams(method, bStatic, true, true, false)%>)", <%=ConsoleApp1.Program.GetPrototype(type, method)%>, &<%=type.Name%>::<%=method.Name%>);<%}%> <%}%> <%}%>
 }
