@@ -298,7 +298,7 @@ namespace ConsoleApp1
             {
                 foreach (var parseClass in compilation.Classes)
                 {
-                    if (parseClass.Name.Equals("UClass"))
+                    if (Regex.IsMatch(parseClass.Name, "^U[A-Z]"))
                     {
                         functionWhiteList.Add("GetName");
                         functionWhiteList.Add("GetPathName");
