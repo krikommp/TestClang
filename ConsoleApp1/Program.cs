@@ -318,6 +318,16 @@ namespace ConsoleApp1
             return ret;
         }
 
+        public static string GetPrototype(CppClass type, CppFunction method)
+        {
+            var parameters = method.Parameters.Count > 0
+                ? method.Parameters.Select(p => p.Type.GetDisplayName()).Aggregate((cur, next) => $"{cur}, {next}")
+                : "";
+            var bStatic = ((method.Flags & CppFunctionFlags.Static) != 0);
+            var bConst = ((method.Flags & CppFunctionFlags.Const) != 0);
+            return $"{method.ReturnType.GetDisplayName()}({(bStatic ? "*" : $"{type.GetDisplayName()}::*")})({parameters}){(bConst ? "const" : "")}";
+        }
+
         public static void Generate(CppType type)
         {
             var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\TestTemplate.txt");
@@ -337,10 +347,11 @@ namespace ConsoleApp1
             sw.Close();
         }
 
-        public static void GenerateCpp(string moduleName ,List<CppType> types)
+        public static void GenerateCpp(string moduleName ,List<CppClass> types)
         {
-            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\ModuleTemplate.txt");
+            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\GeneratorTemplate.txt");
             var global = new Globals(); 
+            global.Context.Add("moduleName", moduleName);
             global.Context.Add("types", types);
             global.Assemblies.Add(typeof(Program).Assembly);
             global.Assemblies.Add(typeof(Regex).Assembly);
@@ -398,6 +409,7 @@ namespace ConsoleApp1
                 basesGetter = GetBases;
                 CppType typeField = null, typeProperty = null;
                 List<CppType> declProps = new List<CppType>();
+                List<CppClass> uClassTypes = new List<CppClass>();
                 foreach (var  parseClass in compilation.Classes)
                 {
                     if (parseClass.Name.Equals("FField"))
@@ -411,9 +423,16 @@ namespace ConsoleApp1
                         declProps.Add(parseClass);
                     }else if (Regex.IsMatch(parseClass.Name, "^U[A-Z]"))
                     {
-                        Generate(parseClass);
+                        uClassTypes.Add(parseClass);
                     }
                 }
+
+                foreach (var type in uClassTypes)
+                {
+                    Generate(type);
+                }
+                
+                GenerateCpp("CoreUObject", uClassTypes);
                 
                 Generate(typeField);
                 basesGetter = type => type.GetDisplayName() switch
