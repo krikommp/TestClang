@@ -1,0 +1,175 @@
+// ReSharper disable RedundantUsingDirective
+#pragma warning disable CS0109
+using System;
+using System.Runtime.CompilerServices;
+
+namespace UnrealEngine
+{
+	public interface <%="I" + type.Name%><%=(ConsoleApp1.Program.basesGetter != null && ConsoleApp1.Program.basesGetter.Invoke(type).Any()) ? (": " + (ConsoleApp1.Program.basesGetter.Invoke(type).Select(t => $"I{t.ToString()}").Aggregate((cur, next) => $"{cur}, {next}"))) : ""%>
+	{
+		unsafe <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr();
+	}
+
+	public unsafe struct <%=type.Name%>Unsafe : I<%=type.Name%>
+	{
+		public const int bufferSize = <%=type.SizeOf%>;
+
+#pragma warning disable CS0649
+		public fixed byte fixedBuffer[bufferSize];
+#pragma warning restore CS0649
+
+		public <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr()
+		{
+			fixed (byte* ptr = fixedBuffer) 
+			{
+				return (<%=type.Name%>Unsafe*)ptr;
+			}
+		}
+		<%foreach (var baseType in ConsoleApp1.Program.GetBasesRecursive(type)){%>
+		public <%=baseType.Type.GetDisplayName()%>Unsafe* Get<%=baseType.Type.GetDisplayName()%>Ptr()
+		{
+		    fixed(byte* ptr = fixedBuffer) 
+		    {
+		        return (<%=baseType.Type.GetDisplayName()%>Unsafe*)Ptr;
+		    }
+		}
+		<%}%>
+	}
+	<%if(Regex.IsMatch(type.Name, "^U[A-Z]")){%> <%var baseClass = type.BaseTypes.FirstOrDefault(); var isRoot = baseClass == null; var supers = new List<string>(); if(!isRoot) { supers.Add(baseClass.Type.GetDisplayName()); } supers.Add($"I{type.Name}");%> 
+	public partial class <%=isRoot? ($"{type.Name}{supers.Aggregate(" : IDisposable", (cur, next) => $"{cur}, {next}")}") : ($"{type.Name}{(supers.Count == 0 ? "" : $" : {supers.Aggregate((cur, next) => $"{cur}, {next}")}")}") %>
+	{
+	    public unsafe <%=type.Name%>Unsafe* Get<%=type.Name%>Ptr() 
+	    {
+	        return (<%=type.Name%>Unsafe*)nativePtr;
+	    }
+	    <%if(isRoot){%>
+	    protected unsafe void* nativePtr;
+	    
+	    public unsafe void Dispose()
+	    {
+	        UObjectMethods.Release((UObjectUnsafe*)nativePtr);
+	    }
+	    
+	    unsafe ~<%=type.Name%>
+	    {
+	        Dispose();
+	    }
+	    <%}%>
+        <%foreach(var cppFunction in type.Functions){%> <%if ((cppFunction.Flags & CppFunctionFlags.Static) != 0 && ConsoleApp1.Program.CanExport(type, cppFunction)) {%> <%var returnType = ConsoleApp1.Program.ToSharpType(cppFunction.ReturnType, false);%>
+        public new static <%=returnType%> <%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToParams(cppFunction, true, false, false, true, true)%>) 
+        {
+            <%=(returnType == "void") ? "" : "return"%> <%=type.Name%>Methods.<%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToInvokeParams(cppFunction, true, false)%>);
+        }
+        <%}%> <%}%>
+	}
+	<%}%>
+	public static partial class <%=type.Name%>Methods
+	{
+	    <%foreach(var method in type.Functions){%> <%if(ConsoleApp1.Program.CanExport(type, method)) {%> <%var unsafeReturnType = ConsoleApp1.Program.ToSharpType(method.ReturnType); var returnType = ConsoleApp1.Program.ToSharpType(method.ReturnType, false); var bStatic = ((method.Flags & CppFunctionFlags.Static) != 0);%>
+	    [MethodImpl(MethodImplOptions.InternalCall)]
+	    public static extern unsafe <%=unsafeReturnType%> <%=(bStatic ? "unsafe_" : "")%><%=method.Name%>(<%=bStatic ? "" : type.Name + "Unsafe* inThis"%><%=ConsoleApp1.Program.ToParams(method, bStatic, true, false, true, true)%>);
+	    <%if(!bStatic){%>
+	    public static unsafe <%=unsafeReturnType%> unsafe_<%=method.Name%>(this I<%=type.Name%> inThis<%=ConsoleApp1.Program.ToParams(method, false, true, false, true, true)%>)
+	    {
+	        var nativePtr = inThis.Get<%=type.Name%>Ptr();
+	        if (nativePtr == null) throw new NullReferenceException();
+	        <%=(unsafeReturnType == "void") ? "" : "return "%><%=method.Name%>(nativePtr<%=ConsoleApp1.Program.ToInvokeParams(method, false, true)%>);
+	    }
+	    <%}%> 
+	    public static unsafe <%=returnType%> <%=method.Name%>(<%=(bStatic ? "" : $"this I{type.Name} inThis")%><%=ConsoleApp1.Program.ToParams(method, bStatic, false, false, true, true)%>)
+	    {
+	        <%if(!bStatic){%>
+	        var nativePtr = inThis.Get<%=type.Name%>Ptr();
+	        if (nativePtr == null) throw new NullReferenceException();<%}%>
+	        <%=(returnType == "void") ? "" : ((returnType.Equals(unsafeReturnType)) ? "return " : "var ret = ")%><%=bStatic ? "unsafe_" : ""%><%=method.Name%>(<%=bStatic ? "" : "nativePtr"%><%=ConsoleApp1.Program.ToInvokeParams(method, bStatic, false)%>);
+	        <%if(returnType != unsafeReturnType){%>
+	        return ret == null ? null : ret->As<<%=returnType%>>();<%}%>
+	    }
+	    <%}%> <%}%>
+	}
+	
+	<%foreach(var includeType in includeTypes) {%>
+    public interface <%="I" + includeType.Name%><%=(ConsoleApp1.Program.basesGetter != null && ConsoleApp1.Program.basesGetter.Invoke(includeType).Any()) ? (": " + (ConsoleApp1.Program.basesGetter.Invoke(includeType).Select(t => $"I{t.ToString()}").Aggregate((cur, next) => $"{cur}, {next}"))) : ""%>
+    {
+        unsafe <%=includeType.Name%>Unsafe* Get<%=includeType.Name%>Ptr();
+    }
+
+    public unsafe struct <%=includeType.Name%>Unsafe : I<%=includeType.Name%>
+    {
+        public const int bufferSize = <%=includeType.SizeOf%>;
+
+#pragma warning disable CS0649
+        public fixed byte fixedBuffer[bufferSize];
+#pragma warning restore CS0649
+
+        public <%=includeType.Name%>Unsafe* Get<%=includeType.Name%>Ptr()
+        {
+            fixed (byte* ptr = fixedBuffer) 
+            {
+                return (<%=includeType.Name%>Unsafe*)ptr;
+            }
+        }
+        <%foreach (var baseType in ConsoleApp1.Program.GetBasesRecursive(includeType)){%>
+        public <%=baseType.Type.GetDisplayName()%>Unsafe* Get<%=baseType.Type.GetDisplayName()%>Ptr()
+        {
+            fixed(byte* ptr = fixedBuffer) 
+            {
+                return (<%=baseType.Type.GetDisplayName()%>Unsafe*)Ptr;
+            }
+        }
+        <%}%>
+    }
+    <%if(Regex.IsMatch(includeType.Name, "^U[A-Z]")){%> <%var baseClass = includeType.BaseTypes.FirstOrDefault(); var isRoot = baseClass == null; var supers = new List<string>(); if(!isRoot) { supers.Add(baseClass.Type.GetDisplayName()); } supers.Add($"I{includeType.Name}");%> 
+    public partial class <%=isRoot? ($"{includeType.Name}{supers.Aggregate(" : IDisposable", (cur, next) => $"{cur}, {next}")}") : ($"{includeType.Name}{(supers.Count == 0 ? "" : $" : {supers.Aggregate((cur, next) => $"{cur}, {next}")}")}") %>
+    {
+        public unsafe <%=includeType.Name%>Unsafe* Get<%=includeType.Name%>Ptr() 
+        {
+            return (<%=includeType.Name%>Unsafe*)nativePtr;
+        }
+        <%if(isRoot){%>
+        protected unsafe void* nativePtr;
+        
+        public unsafe void Dispose()
+        {
+            UObjectMethods.Release((UObjectUnsafe*)nativePtr);
+        }
+        
+        unsafe ~<%=includeType.Name%>
+        {
+            Dispose();
+        }
+        <%}%>
+        <%foreach(var cppFunction in includeType.Functions){%> <%if ((cppFunction.Flags & CppFunctionFlags.Static) != 0 && ConsoleApp1.Program.CanExport(includeType, cppFunction)) {%> <%var returnType = ConsoleApp1.Program.ToSharpType(cppFunction.ReturnType, false);%>
+        public new static <%=returnType%> <%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToParams(cppFunction, true, false, false, true, true)%>) 
+        {
+            <%=(returnType == "void") ? "" : "return"%> <%=includeType.Name%>Methods.<%=cppFunction.Name%>(<%=ConsoleApp1.Program.ToInvokeParams(cppFunction, true, false)%>);
+        }
+        <%}%> <%}%>
+    }
+    <%}%>
+    public static partial class <%=includeType.Name%>Methods
+    {
+        <%foreach(var method in includeType.Functions){%> <%if(ConsoleApp1.Program.CanExport(includeType, method)) {%> <%var unsafeReturnType = ConsoleApp1.Program.ToSharpType(method.ReturnType); var returnType = ConsoleApp1.Program.ToSharpType(method.ReturnType, false); var bStatic = ((method.Flags & CppFunctionFlags.Static) != 0);%>
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern unsafe <%=unsafeReturnType%> <%=(bStatic ? "unsafe_" : "")%><%=method.Name%>(<%=bStatic ? "" : includeType.Name + "Unsafe* inThis"%><%=ConsoleApp1.Program.ToParams(method, bStatic, true, false, true, true)%>);
+        <%if(!bStatic){%>
+        public static unsafe <%=unsafeReturnType%> unsafe_<%=method.Name%>(this I<%=includeType.Name%> inThis<%=ConsoleApp1.Program.ToParams(method, false, true, false, true, true)%>)
+        {
+            var nativePtr = inThis.Get<%=includeType.Name%>Ptr();
+            if (nativePtr == null) throw new NullReferenceException();
+            <%=(unsafeReturnType == "void") ? "" : "return "%><%=method.Name%>(nativePtr<%=ConsoleApp1.Program.ToInvokeParams(method, false, true)%>);
+        }
+        <%}%> 
+        public static unsafe <%=returnType%> <%=method.Name%>(<%=(bStatic ? "" : $"this I{includeType.Name} inThis")%><%=ConsoleApp1.Program.ToParams(method, bStatic, false, false, true, true)%>)
+        {
+            <%if(!bStatic){%>
+            var nativePtr = inThis.Get<%=includeType.Name%>Ptr();
+            if (nativePtr == null) throw new NullReferenceException();<%}%>
+            <%=(returnType == "void") ? "" : ((returnType.Equals(unsafeReturnType)) ? "return " : "var ret = ")%><%=bStatic ? "unsafe_" : ""%><%=method.Name%>(<%=bStatic ? "" : "nativePtr"%><%=ConsoleApp1.Program.ToInvokeParams(method, bStatic, false)%>);
+            <%if(returnType != unsafeReturnType){%>
+            return ret == null ? null : ret->As<<%=returnType%>>();<%}%>
+        }
+        <%}%> <%}%>
+    }
+	<%}%>
+}

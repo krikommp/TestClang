@@ -347,6 +347,26 @@ namespace ConsoleApp1
             sw.Close();
         }
 
+        public static void GenerateProperties(CppType type, List<CppClass> includeTypes)
+        {
+            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\PropertyTemplate.txt");
+            var global = new Globals(); 
+            global.Context.Add("type", type);
+            global.Context.Add("includeTypes", includeTypes);
+            global.Assemblies.Add(typeof(Program).Assembly);
+            global.Assemblies.Add(typeof(Regex).Assembly);
+            global.Namespaces.Add("System.Linq");
+            global.Namespaces.Add("System.Text.RegularExpressions");
+            var o = CSharpTemplate.Compile<string>(templateFileContent, global);
+            string filename = @"C:\Users\chenyifei\Documents\Test\" + type.GetDisplayName() + ".cs";
+            FileStream fs = File.Create(filename);
+            fs.Close();
+            StreamWriter sw = new StreamWriter(filename);
+            sw.WriteLine(o);
+            sw.Flush();
+            sw.Close();
+        }
+
         public static void GenerateCpp(string moduleName ,List<CppClass> types)
         {
             var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\GeneratorTemplate.txt");
@@ -408,7 +428,7 @@ namespace ConsoleApp1
             {
                 basesGetter = GetBases;
                 CppType typeField = null, typeProperty = null;
-                List<CppType> declProps = new List<CppType>();
+                List<CppClass> declProps = new List<CppClass>();
                 List<CppClass> uClassTypes = new List<CppClass>();
                 foreach (var  parseClass in compilation.Classes)
                 {
@@ -441,12 +461,13 @@ namespace ConsoleApp1
                     "FProperty" => new []{ new CppBaseType(typeField) },
                     _ => new []{ new CppBaseType(typeProperty) }
                 };
-                Generate(typeProperty);
+                GenerateProperties(typeProperty, declProps);
 
-                foreach (var declProp in declProps)
-                {
-                    Generate(declProp);
-                }
+                // foreach (var declProp in declProps)
+                // {
+                //     declP
+                //     Generate(declProp);
+                // }
                 
                 // GenerateCpp("CoreUObject", uClassTypes);
 
