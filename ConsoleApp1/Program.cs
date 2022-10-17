@@ -215,7 +215,7 @@ namespace ConsoleApp1
             }else if (type.TypeKind == CppTypeKind.Enum)
             {
                 var typeName = type.GetDisplayName();
-                if (!exportedEnumTypes.Contains(typeName) && exportedEnumTypesMap.ContainsKey(typeName))
+                if (!exportedEnumTypes.Contains(typeName) && !exportedEnumTypesMap.ContainsKey(typeName))
                 {
                     exportedEnumTypesMap.Add(typeName, type);
                 }
@@ -337,6 +337,47 @@ namespace ConsoleApp1
             sw.Close();
         }
 
+        public static void GenerateCpp(string moduleName ,List<CppType> types)
+        {
+            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\ModuleTemplate.txt");
+            var global = new Globals(); 
+            global.Context.Add("types", types);
+            global.Assemblies.Add(typeof(Program).Assembly);
+            global.Assemblies.Add(typeof(Regex).Assembly);
+            global.Namespaces.Add("System.Linq");
+            global.Namespaces.Add("System.Text.RegularExpressions");
+            global.Namespaces.Add("CppAst");
+            var o = CSharpTemplate.Compile<string>(templateFileContent, global);
+            string filename = @"C:\Users\chenyifei\Documents\Test\" + moduleName + ".sharp.h";
+            FileStream fs = File.Create(filename);
+            fs.Close();
+            StreamWriter sw = new StreamWriter(filename);
+            sw.WriteLine(o);
+            sw.Flush();
+            sw.Close();
+        }
+
+        public static void FinishGenerate(string moduleName)
+        {
+            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\ModuleTemplate.txt");
+            var global = new Globals(); 
+            global.Context.Add("moduleName", moduleName);
+            global.Context.Add("exportedEnumTypesMap", exportedEnumTypesMap);
+            global.Assemblies.Add(typeof(Program).Assembly);
+            global.Assemblies.Add(typeof(Regex).Assembly);
+            global.Namespaces.Add("System.Linq");
+            global.Namespaces.Add("System.Text.RegularExpressions");
+            global.Namespaces.Add("CppAst");
+            var o = CSharpTemplate.Compile<string>(templateFileContent, global);
+            string filename = @"C:\Users\chenyifei\Documents\Test\" + moduleName + ".cs";
+            FileStream fs = File.Create(filename);
+            fs.Close();
+            StreamWriter sw = new StreamWriter(filename);
+            sw.WriteLine(o);
+            sw.Flush();
+            sw.Close();
+        }
+
         public static void TestTemplate()
         {
             var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
@@ -387,6 +428,10 @@ namespace ConsoleApp1
                 {
                     Generate(declProp);
                 }
+                
+                // GenerateCpp("CoreUObject", uClassTypes);
+
+                FinishGenerate("CoreUObject");
             }
             else {
                 foreach (var message in compilation.Diagnostics.Messages) {

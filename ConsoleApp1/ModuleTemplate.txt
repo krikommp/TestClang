@@ -1,0 +1,18 @@
+// ReSharper disable RedundantUsingDirective
+using System;
+using System.Runtime.CompilerServices;
+
+namespace UnrealEngine 
+{
+    public static partial class <%=moduleName%>
+    {
+    }
+    <%foreach(var (name, type) in exportedEnumTypesMap){%> <%if (type is CppEnum cppEnum) {%>
+    public enum <%=cppEnum.Name%>
+    {
+        <%foreach(var enumItem in cppEnum.Items) {%>
+        <%=enumItem.Name%> = <%=enumItem.Value%>,
+        <%}%>
+    }
+    <%}%> <%}%>
+}
