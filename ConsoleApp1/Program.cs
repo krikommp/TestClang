@@ -105,7 +105,17 @@ namespace ConsoleApp1
         }
         
         static public readonly HashSet<string> functionWhiteList = new HashSet<string>();
-        
+
+        static public readonly Dictionary<string, string> cxxRecordNameToSharpTypeName =
+            new Dictionary<string, string>()
+            {
+                { "FString", "string" },
+                { "FName", "FName" },
+                { "FText", "FText" }
+            };
+        static public readonly HashSet<string> exportedEnumTypes = new HashSet<string>();
+        static public readonly Dictionary<string, CppType> exportedEnumTypesMap = new Dictionary<string, CppType>();
+
         public static IEnumerable<CppBaseType> GetBasesRecursive(CppClass type) {
             var outClass = new List<CppBaseType>();
             outClass.AddRange(type.BaseTypes);
@@ -127,6 +137,11 @@ namespace ConsoleApp1
             return Regex.IsMatch(cxxType.GetDisplayName(), "^U[A-Z]");
         }
 
+        public static bool IsUClass(string cxxTypeName)
+        {
+            return Regex.IsMatch(cxxTypeName, "^U[A-Z]");
+        }
+
         public static bool IsUFunction(CppFunction cxxFunction)
         {
             return false;
@@ -135,39 +150,66 @@ namespace ConsoleApp1
         public static string ToSharpType(CppType type, bool bUnsafe = true, bool bFullname = false)
         {
             var space = bFullname ? "UnrealEngine." : "";
-            var returnType = type.ToString();
-            if (String.IsNullOrEmpty(returnType))
+            if (type.TypeKind == CppTypeKind.Pointer && type is CppPointerType pointerType)
             {
-                return null;
-            }
-            if (type.TypeKind == CppTypeKind.Pointer)
-            {
-                if (IsUClass(type))
+                var realType = pointerType.ElementType;
+                if (realType.TypeKind == CppTypeKind.Qualified && realType is CppQualifiedType cppQualifiedType)
                 {
-                    return $"{space}{(type as CppPointerType).ElementType.GetDisplayName()}{(bUnsafe ? "Unsafe*" : "")}";
+                    realType = cppQualifiedType.ElementType;
                 }
-            }else if (type.TypeKind == CppTypeKind.Reference)
-            {
-                if (IsUClass(type))
+                if (IsUClass(realType))
                 {
-                    var elementType = (type as CppReferenceType)?.ElementType;
-                    var pointeeType = ToSharpType(elementType);
-                    if (!string.IsNullOrEmpty(pointeeType))
-                    {
-                        return $"ret {pointeeType}";
-                    }
+                    return $"{space}{realType.GetDisplayName()}{(bUnsafe ? "Unsafe*" : "")}";
                 }
+            }else if (type.TypeKind == CppTypeKind.Reference && type is CppReferenceType cppReference)
+            {
+                var elementType = cppReference.ElementType;
+                var pointeeType = ToSharpType(elementType);
+                if (!string.IsNullOrEmpty(pointeeType))
+                {
+                    return $"ref {pointeeType}";
+                }
+            }else if (type.TypeKind == CppTypeKind.StructOrClass && type is CppClass cppClass)
+            {
+                if (cppClass.TemplateParameters.Count > 0)
+                {
+                    return null;
+                }
+                if (cxxRecordNameToSharpTypeName.TryGetValue(type.GetDisplayName(), out var sharpType))
+                {
+                    return $"{space}{sharpType}";
+                }
+            }else if (type.TypeKind == CppTypeKind.Enum)
+            {
+                var typeName = type.GetDisplayName();
+                if (!exportedEnumTypes.Contains(typeName) && exportedEnumTypesMap.ContainsKey(typeName))
+                {
+                    exportedEnumTypesMap.Add(typeName, type);
+                }
+                return $"{space}{typeName}";
             }
-            return returnType;
+            else if (type.TypeKind == CppTypeKind.Typedef && type is CppTypedef typedef)
+            {
+                return ToSharpType(typedef.ElementType);
+            }else if (type.TypeKind == CppTypeKind.Qualified && type is CppQualifiedType qualifiedType)
+            {
+                return ToSharpType(qualifiedType.ElementType);
+            }
+            else
+            {
+                return type.ToString();
+            }
+
+            return null;
         }
 
         public static string ToSharpParamName(CppParameter param, bool covertUnsafe = false)
         {
             var paramName = param.Name[..1].ToLower() + param.Name[1..];
-            if (covertUnsafe && param.Type.TypeKind == CppTypeKind.Pointer)
+            if (covertUnsafe && param.Type.TypeKind == CppTypeKind.Pointer && param.Type is CppPointerType pointerTypes)
             {
-                var pointee = (param.Type as CppPointerType)?.ElementType.GetDisplayName();
-                paramName = $"{paramName} == null ? null : {paramName}.Get{pointee}Ptr()";
+                var sharpType = ToSharpType(pointerTypes, false);
+                paramName = $"{paramName} == null ? null : {paramName}.Get{sharpType}Ptr()";
             }
 
             return paramName;
@@ -190,9 +232,19 @@ namespace ConsoleApp1
 
         public static string ToSharpDefault(CppParameter param)
         {
-            if (param.InitValue.Value != null)
+            if (param.InitValue != null && param.InitValue.Value != null)
             {
-                
+                if (param.Type.TypeKind == CppTypeKind.Enum && param.Type is CppEnum enumType)
+                {
+                    return $" = {enumType.Name}.{enumType.Items[ Convert.ToInt32((long)param.InitValue.Value)].Name}";
+                }
+                else
+                {
+                    return $" = {param.InitExpression}";
+                }
+            }else if (param.Type.TypeKind == CppTypeKind.Pointer)
+            {
+                return $" = null";
             }
 
             return null;
@@ -209,10 +261,9 @@ namespace ConsoleApp1
                 ret += paramSharpType;
                 if (paramName) ret += $" {ToSharpParamName(parameter)}";
                 if (!defaultValue) continue;
-                // todo...
-                if (parameter.InitValue.Value != null)
+                if (parameter.InitExpression != null)
                 {
-                    ret += $" = {parameter.InitExpression}";
+                    ret += ToSharpDefault(parameter);
                 }
             }
 
@@ -247,7 +298,7 @@ namespace ConsoleApp1
             {
                 foreach (var parseClass in compilation.Classes)
                 {
-                    if (parseClass.Name.Equals("UClass"))
+                    if (parseClass.Name.Equals("UObjectBaseUtility"))
                     {
                         functionWhiteList.Add("GetName");
                         functionWhiteList.Add("GetPathName");
@@ -263,7 +314,13 @@ namespace ConsoleApp1
                         global.Namespaces.Add("System.Linq");
                         global.Namespaces.Add("System.Text.RegularExpressions");
                         var o = CSharpTemplate.Compile<string>(templateFileContent, global);
-                        Console.WriteLine(o);
+                        string filename = @"C:\Users\chenyifei\Documents\Test\" + parseClass.Name + ".cs";
+                        FileStream fs = File.Create(filename);
+                        fs.Close();
+                        StreamWriter sw = new StreamWriter(filename);
+                        sw.WriteLine(o);
+                        sw.Flush();
+                        sw.Close();
                     }
                 }
             }

@@ -1,3 +1,4 @@
+// ReSharper disable RedundantUsingDirective
 #pragma warning disable CS0109
 using System;
 using System.Runtime.CompilerServices;
@@ -68,19 +69,17 @@ namespace UnrealEngine
 	    {
 	        var nativePtr = inThis.Get<%=type.Name%>Ptr();
 	        if (nativePtr == null) throw new NullReferenceException();
-	        <%=(unsafeReturnType == "void") ? "" : "return"%> <%=method.Name%>(nativePtr<%=ConsoleApp1.Program.ToInvokeParams(method, false, true)%>);
+	        <%=(unsafeReturnType == "void") ? "" : "return "%><%=method.Name%>(nativePtr<%=ConsoleApp1.Program.ToInvokeParams(method, false, true)%>);
 	    }
 	    <%}%> 
 	    public static unsafe <%=returnType%> <%=method.Name%>(<%=(bStatic ? "" : $"this I{type.Name} inThis")%><%=ConsoleApp1.Program.ToParams(method, bStatic, false, false, true, true)%>)
 	    {
 	        <%if(!bStatic){%>
 	        var nativePtr = inThis.Get<%=type.Name%>Ptr();
-	        if (nativePtr == null) throw new NullReferenceException();
-	        <%}%>
-	        <%=(returnType == "void") ? "" : ((returnType == unsafeReturnType) ? "return" : "var ret =")%> <%=bStatic ? "unsafe_" : ""%><%=method.Name%>(<%=bStatic ? "" : "nativePtr"%><%=ConsoleApp1.Program.ToInvokeParams(method, bStatic, false)%>);
+	        if (nativePtr == null) throw new NullReferenceException();<%}%>
+	        <%=(returnType == "void") ? "" : ((returnType.Equals(unsafeReturnType)) ? "return " : "var ret = ")%><%=bStatic ? "unsafe_" : ""%><%=method.Name%>(<%=bStatic ? "" : "nativePtr"%><%=ConsoleApp1.Program.ToInvokeParams(method, bStatic, false)%>);
 	        <%if(returnType != unsafeReturnType){%>
-	        return ret == null ? null : ret->As<<%=returnType%>>();
-	        <%}%>
+	        return ret == null ? null : ret->As<<%=returnType%>>();<%}%>
 	    }
 	    <%}%> <%}%>
 	}
