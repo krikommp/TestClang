@@ -192,7 +192,7 @@ namespace CppAst
             IToolChain toolChain = null;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                toolChain = null;
+                toolChain = new VcToolChain();
             }else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 toolChain = new MacToolChain();

@@ -207,7 +207,7 @@ namespace CppAst
         
         public CppParserOptions ConfigureForWithClangSystemInclude()
         {
-            Func<string, string[]> parseClangIncludePath = context =>
+            Func<string, bool, string[]> parseClangIncludePath = (context, bExcludeClang) =>
             {
                 string[] lines = context.Split(Environment.NewLine.ToCharArray());
                 bool beginParse = false;
@@ -223,6 +223,11 @@ namespace CppAst
                     if (Regex.IsMatch(line, @"End of search list."))
                     {
                         beginParse = false;
+                        continue;
+                    }
+
+                    if (beginParse && bExcludeClang && Regex.IsMatch(line, @".*\\clang\\.*"))
+                    {
                         continue;
                     }
 
@@ -253,7 +258,7 @@ namespace CppAst
                     fs.Close();
                 }
                 string res = CppUtils.RunToolAndCaptureOutput($"{toolChain}", $" -c {tmpFileName} -v");
-                this.AdditionalArguments.AddRange(parseClangIncludePath(res));
+                this.AdditionalArguments.AddRange(parseClangIncludePath(res, RuntimeInformation.IsOSPlatform(OSPlatform.Windows)));
                 File.Delete(tmpFileName);
             }
 
