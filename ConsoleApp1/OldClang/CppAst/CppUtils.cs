@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -67,9 +68,42 @@ namespace CppAst
 
     internal class LinuxToolChain : IToolChain
     {
+        public static string? Which(string name)
+        {
+            Process proc = new Process();
+            proc.StartInfo.FileName = "/bin/sh";
+            proc.StartInfo.Arguments = String.Format("-c 'which {0}'", name);
+            proc.StartInfo.UseShellExecute = false;
+            proc.StartInfo.CreateNoWindow = true;
+            proc.StartInfo.RedirectStandardOutput = true;
+            proc.StartInfo.RedirectStandardError = true;
+
+            proc.Start();
+            proc.WaitForExit();
+
+            string? path = proc.StandardOutput.ReadLine();
+            Console.WriteLine(String.Format("which {0} result: ({1}) {2}", name, proc.ExitCode, path));
+
+            if (proc.ExitCode == 0 && String.IsNullOrEmpty(proc.StandardError.ReadToEnd()))
+            {
+                return path;
+            }
+            return null;
+        }
         public string GetClangToolChainDir()
         {
-            throw new NotImplementedException();
+            string[] ClangNames = { "clang++", "clang++-7.0", "clang++-6.0" };
+            string? ClangPath;
+            foreach (var clangName in ClangNames)
+            {
+                ClangPath = Which(clangName);
+                if (!String.IsNullOrEmpty(ClangPath))
+                {
+                    return ClangPath;
+                }
+            }
+
+            return null;
         }
     }
 
@@ -155,7 +189,36 @@ namespace CppAst
 
         public static string FindClangCompiler()
         {
-            return null;
+            IToolChain toolChain = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                toolChain = null;
+            }else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                toolChain = new MacToolChain();
+            }else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                toolChain = new LinuxToolChain();
+            }
+            else
+            {
+                Console.WriteLine($"Not Support Platform {RuntimeInformation.OSDescription}");
+                toolChain = null;
+            }
+
+            if (toolChain == null)
+            {
+                return null;
+            }
+            
+            return toolChain.GetClangToolChainDir();
+        }
+
+        public static string GetTempPathFileName(string fileName)
+        {
+            string tempPath = Path.GetTempPath();
+            fileName = tempPath + Path.GetFileName(fileName);
+            return fileName;
         }
     }
 }

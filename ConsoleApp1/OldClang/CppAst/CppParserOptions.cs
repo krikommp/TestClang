@@ -4,6 +4,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Xml.Schema;
 
 namespace CppAst
@@ -199,6 +201,60 @@ namespace CppAst
             AdditionalArguments.Add("-fms-extensions");
             AdditionalArguments.Add("-fms-compatibility");
             AdditionalArguments.Add($"-fms-compatibility-version={versionAsString}");
+            return this;
+        }
+        
+        public CppParserOptions ConfigureForWithClangSystemInclude()
+        {
+            Func<string, string[]> parseClangIncludePath = context =>
+            {
+                string[] lines = context.Split(Environment.NewLine.ToCharArray());
+                bool beginParse = false;
+                List<string> systemIncludePath = new List<string>();
+                foreach (var line in lines)
+                {
+                    if (Regex.IsMatch(line, @"#include\s<...>\ssearch\sstarts\shere:"))
+                    {
+                        beginParse = true;
+                        continue;
+                    }
+
+                    if (Regex.IsMatch(line, @"End of search list."))
+                    {
+                        beginParse = false;
+                        continue;
+                    }
+
+                    if (beginParse && !String.IsNullOrWhiteSpace(line))
+                    {
+                        var path = line.Trim();
+                        if (path.EndsWith("Frameworks"))
+                        {
+                            path = $"-F{path}";
+                        }
+                        else
+                        {
+                            path = $"-isystem{path}";
+                        }
+                        systemIncludePath.Add(path);
+                    }
+                }
+                return systemIncludePath.ToArray();
+            };
+            string tmpFileName = CppUtils.GetTempPathFileName($"{Path.GetRandomFileName()}.cpp");
+            Console.WriteLine($"Using {tmpFileName}");
+            using (var fs = File.Create(tmpFileName))
+            {
+                fs.Flush();
+                fs.Close();
+            }
+            string toolChain = CppUtils.FindClangCompiler();
+            if (!string.IsNullOrEmpty(toolChain))
+            {
+                string res = CppUtils.RunToolAndCaptureOutput($"{toolChain}", $" -c {tmpFileName} -v");
+                this.AdditionalArguments.AddRange(parseClangIncludePath(res));
+            }
+            File.Delete(tmpFileName);
             return this;
         }
     }

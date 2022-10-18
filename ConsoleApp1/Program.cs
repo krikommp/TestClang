@@ -415,6 +415,7 @@ namespace ConsoleApp1
             var fileName = "CoreUObject.cpp";
             var content = "#include \"Public/CoreUObject.h\"";
             var options = new CppParserOptions();
+            options.ConfigureForWithClangSystemInclude();
             options.ParseSystemIncludes = false;
             options.AdditionalArguments.AddRange(lines);
             var compilation = CppParser.Parse(content, options, fileName);
