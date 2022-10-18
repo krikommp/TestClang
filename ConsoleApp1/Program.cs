@@ -167,7 +167,7 @@ namespace ConsoleApp1
 
         public static bool IsUClass(CppType cxxType)
         {
-            return Regex.IsMatch(cxxType.GetDisplayName(), "^U[A-Z]");
+            return IsUClass(cxxType.GetDisplayName());
         }
 
         public static bool IsUClass(string cxxTypeName)
@@ -330,7 +330,7 @@ namespace ConsoleApp1
 
         public static void Generate(CppType type)
         {
-            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\TestTemplate.txt");
+            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\UClassTemplate.txt");
             var global = new Globals(); 
             global.Context.Add("type", type);
             global.Assemblies.Add(typeof(Program).Assembly);
@@ -462,14 +462,6 @@ namespace ConsoleApp1
                     _ => new []{ new CppBaseType(typeProperty) }
                 };
                 GenerateProperties(typeProperty, declProps);
-
-                // foreach (var declProp in declProps)
-                // {
-                //     declP
-                //     Generate(declProp);
-                // }
-                
-                // GenerateCpp("CoreUObject", uClassTypes);
 
                 FinishGenerate("CoreUObject");
             }
