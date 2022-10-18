@@ -115,7 +115,7 @@ namespace ConsoleApplication1
                     {
                         path = $"-isystem{path}";
                     }
-                    systemIncludePath.Add(path);
+                    //systemIncludePath.Add(path);
                 }
             }
             return systemIncludePath.ToArray();

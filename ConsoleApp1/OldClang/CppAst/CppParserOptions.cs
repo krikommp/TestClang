@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Xml.Schema;
 
@@ -241,20 +242,31 @@ namespace CppAst
                 }
                 return systemIncludePath.ToArray();
             };
-            string tmpFileName = CppUtils.GetTempPathFileName($"{Path.GetRandomFileName()}.cpp");
-            Console.WriteLine($"Using {tmpFileName}");
-            using (var fs = File.Create(tmpFileName))
-            {
-                fs.Flush();
-                fs.Close();
-            }
             string toolChain = CppUtils.FindClangCompiler();
             if (!string.IsNullOrEmpty(toolChain))
             {
+                string tmpFileName = CppUtils.GetTempPathFileName($"{Path.GetRandomFileName()}.cpp");
+                Console.WriteLine($"Using {tmpFileName}");
+                using (var fs = File.Create(tmpFileName))
+                {
+                    fs.Flush();
+                    fs.Close();
+                }
                 string res = CppUtils.RunToolAndCaptureOutput($"{toolChain}", $" -c {tmpFileName} -v");
                 this.AdditionalArguments.AddRange(parseClangIncludePath(res));
+                File.Delete(tmpFileName);
             }
-            File.Delete(tmpFileName);
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                this.AdditionalArguments.AddRange(new string[]
+                {
+                    "-Wno-elaborated-enum-base",
+                    "-x",
+                    "objective-c",
+                });
+            }
+
             return this;
         }
     }
