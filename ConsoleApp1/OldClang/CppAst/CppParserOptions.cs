@@ -234,9 +234,9 @@ namespace CppAst
                     if (beginParse && !String.IsNullOrWhiteSpace(line))
                     {
                         var path = line.Trim();
-                        if (path.EndsWith("Frameworks"))
+                        if (path.EndsWith(" (framework directory)"))
                         {
-                            path = $"-F{path}";
+                            path = $"-F{path.Replace(" (framework directory)", "")}";
                         }
                         else
                         {
@@ -266,10 +266,10 @@ namespace CppAst
             {
                 this.AdditionalArguments.AddRange(new string[]
                 {
-                    "-Wno-elaborated-enum-base",
                     "-x",
-                    "objective-c",
+                    "objective-c++",
                 });
+                ParseAsCpp = false;
             }
 
             return this;
