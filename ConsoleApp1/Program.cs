@@ -468,7 +468,11 @@ namespace ConsoleApp1
                     "FProperty" => new []{ new CppBaseType(typeField) },
                     _ => new []{ new CppBaseType(typeProperty) }
                 };
-                GenerateProperties(typeProperty, declProps);
+                Generate(typeProperty);
+                foreach (var declProp in declProps)
+                {
+                    Generate(declProp);
+                }
 
                 FinishGenerate("CoreUObject");
             }
