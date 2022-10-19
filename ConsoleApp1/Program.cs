@@ -318,6 +318,12 @@ namespace ConsoleApp1
             return ret;
         }
 
+        public static readonly string SaveFilePath = @"C:\Users\chenyifei\Documents\Test\";
+        public static readonly string UClassTemplatePath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\UClassTemplate.txt";
+        public static readonly string PropertyTemplatePath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\PropertyTemplate.txt";
+        public static readonly string CppTemplatePath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\GeneratorTemplate.txt";
+        public static readonly string ModuleTemplatePath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\ModuleTemplate.txt";
+        public static readonly string TestPath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt";
         public static string GetPrototype(CppClass type, CppFunction method)
         {
             var parameters = method.Parameters.Count > 0
@@ -330,7 +336,7 @@ namespace ConsoleApp1
 
         public static void Generate(CppType type)
         {
-            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\UClassTemplate.txt");
+            var templateFileContent = File.ReadAllText(UClassTemplatePath);
             var global = new Globals(); 
             global.Context.Add("type", type);
             global.Assemblies.Add(typeof(Program).Assembly);
@@ -338,7 +344,7 @@ namespace ConsoleApp1
             global.Namespaces.Add("System.Linq");
             global.Namespaces.Add("System.Text.RegularExpressions");
             var o = CSharpTemplate.Compile<string>(templateFileContent, global);
-            string filename = @"C:\Users\chenyifei\Documents\Test\" + type.GetDisplayName() + ".cs";
+            string filename = SaveFilePath + type.GetDisplayName() + ".cs";
             FileStream fs = File.Create(filename);
             fs.Close();
             StreamWriter sw = new StreamWriter(filename);
@@ -349,7 +355,7 @@ namespace ConsoleApp1
 
         public static void GenerateProperties(CppType type, List<CppClass> includeTypes)
         {
-            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\PropertyTemplate.txt");
+            var templateFileContent = File.ReadAllText(PropertyTemplatePath);
             var global = new Globals(); 
             global.Context.Add("type", type);
             global.Context.Add("includeTypes", includeTypes);
@@ -358,7 +364,7 @@ namespace ConsoleApp1
             global.Namespaces.Add("System.Linq");
             global.Namespaces.Add("System.Text.RegularExpressions");
             var o = CSharpTemplate.Compile<string>(templateFileContent, global);
-            string filename = @"C:\Users\chenyifei\Documents\Test\" + type.GetDisplayName() + ".cs";
+            string filename = SaveFilePath + type.GetDisplayName() + ".cs";
             FileStream fs = File.Create(filename);
             fs.Close();
             StreamWriter sw = new StreamWriter(filename);
@@ -369,7 +375,7 @@ namespace ConsoleApp1
 
         public static void GenerateCpp(string moduleName ,List<CppClass> types)
         {
-            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\GeneratorTemplate.txt");
+            var templateFileContent = File.ReadAllText(CppTemplatePath);
             var global = new Globals(); 
             global.Context.Add("moduleName", moduleName);
             global.Context.Add("types", types);
@@ -379,7 +385,7 @@ namespace ConsoleApp1
             global.Namespaces.Add("System.Text.RegularExpressions");
             global.Namespaces.Add("CppAst");
             var o = CSharpTemplate.Compile<string>(templateFileContent, global);
-            string filename = @"C:\Users\chenyifei\Documents\Test\" + moduleName + ".sharp.h";
+            string filename = SaveFilePath + moduleName + ".sharp.h";
             FileStream fs = File.Create(filename);
             fs.Close();
             StreamWriter sw = new StreamWriter(filename);
@@ -390,7 +396,7 @@ namespace ConsoleApp1
 
         public static void FinishGenerate(string moduleName)
         {
-            var templateFileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp1\ModuleTemplate.txt");
+            var templateFileContent = File.ReadAllText(ModuleTemplatePath);
             var global = new Globals(); 
             global.Context.Add("moduleName", moduleName);
             global.Context.Add("exportedEnumTypesMap", exportedEnumTypesMap);
@@ -400,7 +406,7 @@ namespace ConsoleApp1
             global.Namespaces.Add("System.Text.RegularExpressions");
             global.Namespaces.Add("CppAst");
             var o = CSharpTemplate.Compile<string>(templateFileContent, global);
-            string filename = @"C:\Users\chenyifei\Documents\Test\" + moduleName + ".cs";
+            string filename = SaveFilePath + moduleName + ".cs";
             FileStream fs = File.Create(filename);
             fs.Close();
             StreamWriter sw = new StreamWriter(filename);
@@ -411,7 +417,7 @@ namespace ConsoleApp1
 
         public static void TestTemplate()
         {
-            var lines = File.ReadAllLines(@"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt");
+            var lines = File.ReadAllLines(TestPath);
             var fileName = "CoreUObject.cpp";
             var content = "#include \"Public/CoreUObject.h\"";
             var options = new CppParserOptions();
