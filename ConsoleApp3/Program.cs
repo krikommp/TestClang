@@ -1,74 +1,38 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
-using ClangSharp.Interop;
-using CppAst;
+using System.Reflection;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Microsoft.CodeAnalysis.Scripting;
 
 namespace ConsoleApp3
 {
-    unsafe class Program
+    public class Program
     {
-        private const CXTranslationUnit_Flags defaultTranslationUnitFlags =
-            CXTranslationUnit_Flags.CXTranslationUnit_IncludeAttributedTypes |
-            CXTranslationUnit_Flags.CXTranslationUnit_VisitImplicitAttributes |
-            CXTranslationUnit_Flags.CXTranslationUnit_SkipFunctionBodies;
-
-        public static CXChildVisitResult VisitTranslationUnit(CXCursor cursor, CXCursor parent, void* data)
+        public class Bar
         {
-            Console.WriteLine($"Cursor: {cursor} of kind {cursor.kind}");;
-            return CXChildVisitResult.CXChildVisit_Recurse;
+            public string Foo = "Default";
+
+            public int StaffId { get; set; }
+            public int UnitId { get; set; }
+            public int Age { get; set; }
         }
 
-        static void Main(string[] args)
+        public static Bar gBar = new Bar();
+
+        public static void Main(string[] args)
         {
-            CppParserOptions options = new CppParserOptions();
-            options.ConfigureForWithClangSystemInclude();
-            foreach (var argument in options.AdditionalArguments)
-            {
-                Console.WriteLine(argument);
-            }
-            string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            Console.WriteLine(folderPath);
-            // var commandLine = File.ReadAllLines(@"/Users/admin/Documents/HookTest/TestClang/ConsoleApp1/3.txt");
-            // non-defining declaration of enumeration with a fixed underlying type is only permitted as a standalone declaration; missing list of enumerators?
-            // var lines = new string[]
-            // {
-            //     "-isystem/usr/local/opt/llvm/bin/../include/c++/v1",
-            //     "-isystem/usr/local/Cellar/llvm/14.0.6_1/lib/clang/14.0.6/include",
-            //     "-isystem/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/usr/include",
-            //     "-F/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/System/Library/Frameworks",
-            //     "-Wno-elaborated-enum-base",
-            //     "-x",
-            //     "objective-c",
-            // };
-            // var fileName = "CoreUObject.cpp";
-            // var fileContent = File.ReadAllText(@"/Users/admin/Documents/HookTest/TestClang/ConsoleApp3/object_c.hpp");
-            // // var fileContent = File.ReadAllText(@"D:\SandBox\ConsoleApp1\ConsoleApp3\header.hpp");
-            // // var fileContent = File.ReadAllText(@"/home/kriko/TestClang/ConsoleApp3/header.hpp");
-            //
-            // using var unsavedFile = CXUnsavedFile.Create(fileName, fileContent);
-            // var unsavedFiles = new[] { unsavedFile };
-            // var index = CXIndex.Create();
-            // var translationUnit = CXTranslationUnit.Parse(index, fileName, lines, unsavedFiles,
-            //     defaultTranslationUnitFlags);
-            // bool hasError = false;
-            // if (translationUnit.NumDiagnostics != 0)
-            // {
-            //     for (uint i = 0; i < translationUnit.NumDiagnostics; ++i)
-            //     {
-            //         var diagnostic = translationUnit.GetDiagnostic(i);
-            //         Console.WriteLine($"{diagnostic.Severity}: {diagnostic.Location} {diagnostic}");
-            //         if (diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Error ||
-            //             diagnostic.Severity == CXDiagnosticSeverity.CXDiagnostic_Fatal)
-            //         {
-            //             hasError = true;
-            //         }
-            //     }
-            // }
-            // if (!hasError)
-            // {
-            //     translationUnit.Cursor.VisitChildren(VisitTranslationUnit, clientData: default);
-            // }
+            var sciptOptions = ScriptOptions.Default;
+            sciptOptions = sciptOptions.AddReferences(typeof(Bar).Assembly);
+            sciptOptions = sciptOptions.AddReferences(
+                Assembly.LoadFile(@"D:\SandBox\ConsoleApp1\ConsoleApp4\bin\Debug\netcoreapp3.1\ConsoleApp4.dll"));
+
+            string ss = "Empty String";
+            Bar dd = new Bar() { StaffId = 1223 };
+            gBar.Foo = "I Fixed it";
+            var s0 = CSharpScript.Create<Func<string, string>>(
+                "(ss) => { return $\"Hello World! gBar.StaffId = {ConsoleApp3.Program.gBar.Foo}, gf = {RoslyTest.Program.gf.Foo} \"; }", sciptOptions);
+            s0.Compile();
+            var res = s0.RunAsync(null).Result.ReturnValue.Invoke(ss);
+            Console.WriteLine(res);
         }
     }
 }

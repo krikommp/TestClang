@@ -2,11 +2,16 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using ClangSharp.Interop;
 using ConsoleApp1.TemplateEngine;
 using CppAst;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Microsoft.CodeAnalysis.Scripting;
+using Mono.CSharp;
 
 namespace ConsoleApp1
 {
@@ -483,9 +488,31 @@ namespace ConsoleApp1
             }
         }
 
+        public class Context
+        {
+            public string a;
+        }
+
+        public class Bar
+        {
+            public string Foo => "Hello World!";
+ 
+            public int StaffId { get; set; }
+            public int UnitId { get; set; }
+            public int Age { get; set; }
+        }
+        
         static void Main(string[] args)
         {
-            TestTemplate();
+            var sciptOptions = ScriptOptions.Default;
+            sciptOptions = sciptOptions.AddReferences(typeof(Bar).Assembly);
+
+            string ss = "Empty String";
+            Bar dd = new Bar() { StaffId = 1223 };
+            var s0 = CSharpScript.Create<Func<string, Bar, string>>("(ss, dd) => { return \"Hello\" + ss + dd.StaffId; }", sciptOptions);
+            s0.Compile();
+            var res = s0.RunAsync(null).Result.ReturnValue.Invoke(ss, dd);
+            Console.WriteLine(res);
         }
     }
 }

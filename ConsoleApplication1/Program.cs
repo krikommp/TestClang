@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using Mono.CSharp;
 
 namespace ConsoleApplication1
 {
@@ -82,7 +83,7 @@ namespace ConsoleApplication1
             }
 			
             Match M = Regex.Match(processOutput, expression);
-            return M.Success ? M.Groups[1].ToString() : null;	
+            return M.Success ? M.Groups[1].ToString() : null;
         }
 
         public static string[] ParseClangIncludePath(string output)
@@ -123,15 +124,24 @@ namespace ConsoleApplication1
 
         public static void Main(string[] args)
         {
-            string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            Console.WriteLine(folderPath);
-            string clangPath = "C:\\Program Files\\LLVM\\bin\\clang.exe";
-            string result = RunToolAndCaptureOutput(clangPath, "-c C:\\Users\\chenyifei\\Desktop\\Clang\\main.cpp -v");
-            var systemIncludePath = ParseClangIncludePath(result);
-            foreach (var s in systemIncludePath)
-            {
-                Console.WriteLine(s);
-            }
+            // string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            // Console.WriteLine(folderPath);
+            // string clangPath = "C:\\Program Files\\LLVM\\bin\\clang.exe";
+            // string result = RunToolAndCaptureOutput(clangPath, "-c C:\\Users\\chenyifei\\Desktop\\Clang\\main.cpp -v");
+            // var systemIncludePath = ParseClangIncludePath(result);
+            // foreach (var s in systemIncludePath)
+            // {
+            //     Console.WriteLine(s);
+            // }
+            var settings = new CompilerSettings();
+            var printer = new ConsoleReportPrinter();
+            var context = new CompilerContext(settings, printer);
+            var evaluator = new Evaluator(context);
+            evaluator.ReferenceAssembly(typeof(Program).Assembly);
+            evaluator.Run("using System;");
+            var action = evaluator.Compile("Console.WriteLine(\"Hello\")");
+            object a = null;
+            action.Invoke(ref a);
         }
     }
 }

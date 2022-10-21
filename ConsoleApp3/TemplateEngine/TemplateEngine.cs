@@ -195,7 +195,7 @@ namespace ConsoleApp3.TemplateEngine
 
 			var sciptOptions = ScriptOptions.Default.WithImports(global.Namespaces.ToArray()).WithReferences(global.Assemblies.ToArray());
 			var scipt = CSharpScript.RunAsync(ComposeCode(Parser.Parse(snippet), global), sciptOptions, global);
-            return (T)scipt.Result.ReturnValue;
+			return (T)scipt.Result.ReturnValue;
 		}
 	}
 }

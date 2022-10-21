@@ -3,7 +3,6 @@
 #include <iostream>
 #include <string>
 #include <stdlib.h>
-#include <Carbon/Carbon.h>
 
 int TestStdLib(const char* argv)
 {
