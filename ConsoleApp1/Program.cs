@@ -11,7 +11,6 @@ using CppAst;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
-using Mono.CSharp;
 
 namespace ConsoleApp1
 {
@@ -28,6 +27,7 @@ namespace ConsoleApp1
             {
                 return CXChildVisitResult.CXChildVisit_Continue;
             }
+
             Console.WriteLine($"Cursor: {cursor} of kind {cursor.kind}");
             return CXChildVisitResult.CXChildVisit_Recurse;
         }
@@ -53,9 +53,10 @@ namespace ConsoleApp1
             var compilation = CppParser.Parse(fileContent, options, fileName);
             if (compilation.HasErrors)
             {
-                foreach (var message in compilation.Diagnostics.Messages) {
+                foreach (var message in compilation.Diagnostics.Messages)
+                {
                     Console.WriteLine(message);
-                } 
+                }
             }
             else
             {
@@ -78,7 +79,7 @@ namespace ConsoleApp1
                 "-x",
                 "objective-c++",
             }.Union(File.ReadAllLines(@"/Users/admin/Documents/HookTest/TestClang/ConsoleApp1/3.txt"));
-            
+
             var fileName = "CoreUObject.h";
             var fileContent = "#include \"Public/CoreUObject.h\"";
             // var fileContent = File.ReadAllText(@"/Users/admin/Documents/HookTest/TestClang/ConsoleApp3/header.hpp");
@@ -104,12 +105,13 @@ namespace ConsoleApp1
                     }
                 }
             }
+
             if (!hasError)
             {
                 translationUnit.Cursor.VisitChildren(VisitTranslationUnit, clientData: default);
             }
         }
-        
+
         static public readonly HashSet<string> functionWhiteList = new HashSet<string>();
 
         static public readonly Dictionary<string, string> cxxRecordNameToSharpTypeName =
@@ -119,6 +121,7 @@ namespace ConsoleApp1
                 { "FName", "FName" },
                 { "FText", "FText" }
             };
+
         static public readonly HashSet<string> exportedEnumTypes = new HashSet<string>();
         static public readonly Dictionary<string, CppType> exportedEnumTypesMap = new Dictionary<string, CppType>();
 
@@ -157,9 +160,11 @@ namespace ConsoleApp1
                     }
                 }
             }
+
             if (outClass.Count != 0)
             {
-                foreach (var baseType in bases) {
+                foreach (var baseType in bases)
+                {
                     if (baseType.Type.TypeKind == CppTypeKind.StructOrClass)
                     {
                         var baseClass = (CppClass)baseType.Type;
@@ -167,6 +172,7 @@ namespace ConsoleApp1
                     }
                 }
             }
+
             return outClass;
         }
 
@@ -195,11 +201,13 @@ namespace ConsoleApp1
                 {
                     realType = cppQualifiedType.ElementType;
                 }
+
                 if (IsUClass(realType))
                 {
                     return $"{space}{realType.GetDisplayName()}{(bUnsafe ? "Unsafe*" : "")}";
                 }
-            }else if (type.TypeKind == CppTypeKind.Reference && type is CppReferenceType cppReference)
+            }
+            else if (type.TypeKind == CppTypeKind.Reference && type is CppReferenceType cppReference)
             {
                 var elementType = cppReference.ElementType;
                 var pointeeType = ToSharpType(elementType);
@@ -207,29 +215,34 @@ namespace ConsoleApp1
                 {
                     return $"ref {pointeeType}";
                 }
-            }else if (type.TypeKind == CppTypeKind.StructOrClass && type is CppClass cppClass)
+            }
+            else if (type.TypeKind == CppTypeKind.StructOrClass && type is CppClass cppClass)
             {
                 if (cppClass.TemplateParameters.Count > 0)
                 {
                     return null;
                 }
+
                 if (cxxRecordNameToSharpTypeName.TryGetValue(type.GetDisplayName(), out var sharpType))
                 {
                     return $"{space}{sharpType}";
                 }
-            }else if (type.TypeKind == CppTypeKind.Enum)
+            }
+            else if (type.TypeKind == CppTypeKind.Enum)
             {
                 var typeName = type.GetDisplayName();
                 if (!exportedEnumTypes.Contains(typeName) && !exportedEnumTypesMap.ContainsKey(typeName))
                 {
                     exportedEnumTypesMap.Add(typeName, type);
                 }
+
                 return $"{space}{typeName}";
             }
             else if (type.TypeKind == CppTypeKind.Typedef && type is CppTypedef typedef)
             {
                 return ToSharpType(typedef.ElementType);
-            }else if (type.TypeKind == CppTypeKind.Qualified && type is CppQualifiedType qualifiedType)
+            }
+            else if (type.TypeKind == CppTypeKind.Qualified && type is CppQualifiedType qualifiedType)
             {
                 return ToSharpType(qualifiedType.ElementType);
             }
@@ -265,6 +278,7 @@ namespace ConsoleApp1
             {
                 if (string.IsNullOrEmpty(ToSharpType(functionParameter.Type))) return false;
             }
+
             return true;
         }
 
@@ -274,13 +288,14 @@ namespace ConsoleApp1
             {
                 if (param.Type.TypeKind == CppTypeKind.Enum && param.Type is CppEnum enumType)
                 {
-                    return $" = {enumType.Name}.{enumType.Items[ Convert.ToInt32((long)param.InitValue.Value)].Name}";
+                    return $" = {enumType.Name}.{enumType.Items[Convert.ToInt32((long)param.InitValue.Value)].Name}";
                 }
                 else
                 {
                     return $" = {param.InitExpression}";
                 }
-            }else if (param.Type.TypeKind == CppTypeKind.Pointer)
+            }
+            else if (param.Type.TypeKind == CppTypeKind.Pointer)
             {
                 return $" = null";
             }
@@ -288,7 +303,8 @@ namespace ConsoleApp1
             return null;
         }
 
-        public static string ToParams(CppFunction method, bool first, bool bUnsafe, bool bFullname, bool paramName, bool defaultValue = false)
+        public static string ToParams(CppFunction method, bool first, bool bUnsafe, bool bFullname, bool paramName,
+            bool defaultValue = false)
         {
             var ret = "";
             foreach (var parameter in method.Parameters)
@@ -329,6 +345,7 @@ namespace ConsoleApp1
         public static readonly string CppTemplatePath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\GeneratorTemplate.txt";
         public static readonly string ModuleTemplatePath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\ModuleTemplate.txt";
         public static readonly string TestPath = @"D:\SandBox\ConsoleApp1\ConsoleApp1\2.txt";
+
         public static string GetPrototype(CppClass type, CppFunction method)
         {
             var parameters = method.Parameters.Count > 0
@@ -336,13 +353,14 @@ namespace ConsoleApp1
                 : "";
             var bStatic = ((method.Flags & CppFunctionFlags.Static) != 0);
             var bConst = ((method.Flags & CppFunctionFlags.Const) != 0);
-            return $"{method.ReturnType.GetDisplayName()}({(bStatic ? "*" : $"{type.GetDisplayName()}::*")})({parameters}){(bConst ? "const" : "")}";
+            return
+                $"{method.ReturnType.GetDisplayName()}({(bStatic ? "*" : $"{type.GetDisplayName()}::*")})({parameters}){(bConst ? "const" : "")}";
         }
 
         public static void Generate(CppType type)
         {
             var templateFileContent = File.ReadAllText(UClassTemplatePath);
-            var global = new Globals(); 
+            var global = new Globals();
             global.Context.Add("type", type);
             global.Assemblies.Add(typeof(Program).Assembly);
             global.Assemblies.Add(typeof(Regex).Assembly);
@@ -361,7 +379,7 @@ namespace ConsoleApp1
         public static void GenerateProperties(CppType type, List<CppClass> includeTypes)
         {
             var templateFileContent = File.ReadAllText(PropertyTemplatePath);
-            var global = new Globals(); 
+            var global = new Globals();
             global.Context.Add("type", type);
             global.Context.Add("includeTypes", includeTypes);
             global.Assemblies.Add(typeof(Program).Assembly);
@@ -378,10 +396,10 @@ namespace ConsoleApp1
             sw.Close();
         }
 
-        public static void GenerateCpp(string moduleName ,List<CppClass> types)
+        public static void GenerateCpp(string moduleName, List<CppClass> types)
         {
             var templateFileContent = File.ReadAllText(CppTemplatePath);
-            var global = new Globals(); 
+            var global = new Globals();
             global.Context.Add("moduleName", moduleName);
             global.Context.Add("types", types);
             global.Assemblies.Add(typeof(Program).Assembly);
@@ -402,7 +420,7 @@ namespace ConsoleApp1
         public static void FinishGenerate(string moduleName)
         {
             var templateFileContent = File.ReadAllText(ModuleTemplatePath);
-            var global = new Globals(); 
+            var global = new Globals();
             global.Context.Add("moduleName", moduleName);
             global.Context.Add("exportedEnumTypesMap", exportedEnumTypesMap);
             global.Assemblies.Add(typeof(Program).Assembly);
@@ -442,18 +460,21 @@ namespace ConsoleApp1
                 CppType typeField = null, typeProperty = null;
                 List<CppClass> declProps = new List<CppClass>();
                 List<CppClass> uClassTypes = new List<CppClass>();
-                foreach (var  parseClass in compilation.Classes)
+                foreach (var parseClass in compilation.Classes)
                 {
                     if (parseClass.Name.Equals("FField"))
                     {
                         typeField = parseClass;
-                    }else if (parseClass.Name.Equals("FProperty"))
+                    }
+                    else if (parseClass.Name.Equals("FProperty"))
                     {
                         typeProperty = parseClass;
-                    }else if (Regex.IsMatch(parseClass.Name, "^F.*Property$"))
+                    }
+                    else if (Regex.IsMatch(parseClass.Name, "^F.*Property$"))
                     {
                         declProps.Add(parseClass);
-                    }else if (Regex.IsMatch(parseClass.Name, "^U[A-Z]"))
+                    }
+                    else if (Regex.IsMatch(parseClass.Name, "^U[A-Z]"))
                     {
                         uClassTypes.Add(parseClass);
                     }
@@ -463,15 +484,15 @@ namespace ConsoleApp1
                 {
                     Generate(type);
                 }
-                
+
                 GenerateCpp("CoreUObject", uClassTypes);
-                
+
                 Generate(typeField);
                 basesGetter = type => type.GetDisplayName() switch
                 {
                     "FField" => null,
-                    "FProperty" => new []{ new CppBaseType(typeField) },
-                    _ => new []{ new CppBaseType(typeProperty) }
+                    "FProperty" => new[] { new CppBaseType(typeField) },
+                    _ => new[] { new CppBaseType(typeProperty) }
                 };
                 Generate(typeProperty);
                 foreach (var declProp in declProps)
@@ -481,10 +502,12 @@ namespace ConsoleApp1
 
                 FinishGenerate("CoreUObject");
             }
-            else {
-                foreach (var message in compilation.Diagnostics.Messages) {
+            else
+            {
+                foreach (var message in compilation.Diagnostics.Messages)
+                {
                     Console.WriteLine(message);
-                } 
+                }
             }
         }
 
@@ -496,23 +519,105 @@ namespace ConsoleApp1
         public class Bar
         {
             public string Foo => "Hello World!";
- 
+
             public int StaffId { get; set; }
             public int UnitId { get; set; }
             public int Age { get; set; }
         }
-        
+
+        public static string TestLine()
+        {
+            return "Hello\nHello\nHello";
+        }
+
+        public static string mytest()
+        {
+            var result = new List<string>();
+            result.Add("TT\nHeader = ");
+            {
+                var res = Convert.ToString(Program.TestLine());
+                if (!string.IsNullOrEmpty(res) && res.Contains('\n'))
+                {
+                    int alignCharCount = -1;
+                    if (result[^1].EndsWith('\n'))
+                    {
+                        var charArray = res.ToCharArray();
+                        for (int index = 0; index < charArray.Length; index++)
+                        {
+                            if (charArray[index].Equals('\n'))
+                            {
+                                alignCharCount++;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        int lastIndex = result.Count - 1;
+                        while (lastIndex >= 0)
+                        {
+                            var findStr = result[lastIndex];
+                            if (findStr.Contains('\n'))
+                            {
+                                var charArray = findStr.ToCharArray();
+                                for (int charIndex = charArray.Length - 1; charIndex >= 0; --charIndex)
+                                {
+                                    if (charArray[charIndex].Equals('\n'))
+                                    {
+                                        alignCharCount = charArray.Length - (charIndex + 1);
+                                        break;
+                                    }
+                                }
+
+                                break;
+                            }
+
+                            lastIndex--;
+                        }
+                    }
+
+                    if (alignCharCount == -1)
+                    {
+                        alignCharCount = 0;
+                        foreach (var str in result)
+                        {
+                            alignCharCount += str.Length;
+                        }
+                    }
+
+                    var lines = res.Split('\n');
+                    lines[0] += '\n';
+                    for (int index = 1; index < lines.Length; ++index)
+                    {
+                        lines[index] = new string(' ', alignCharCount) + lines[index] + '\n';
+                    }
+
+                    res = string.Join(string.Empty, lines);
+                }
+
+                result.Add(res);
+            }
+
+            return string.Join(string.Empty, result);
+        }
+
         static void Main(string[] args)
         {
-            var sciptOptions = ScriptOptions.Default;
-            sciptOptions = sciptOptions.AddReferences(typeof(Bar).Assembly);
+            var templateFileContent = File.ReadAllText(@"C:\Users\chenyifei\Documents\Test\test.txt");
+            var global = new Globals();
+            global.Assemblies.Add(typeof(Program).Assembly);
+            global.Namespaces.Add("ConsoleApp1");
+            var o = CSharpTemplate.Compile<string>(templateFileContent, global);
+            File.WriteAllText(@"C:\Users\chenyifei\Documents\Test\res.txt", o);
 
-            string ss = "Empty String";
-            Bar dd = new Bar() { StaffId = 1223 };
-            var s0 = CSharpScript.Create<Func<string, Bar, string>>("(ss, dd) => { return \"Hello\" + ss + dd.StaffId; }", sciptOptions);
-            s0.Compile();
-            var res = s0.RunAsync(null).Result.ReturnValue.Invoke(ss, dd);
-            Console.WriteLine(res);
+
+            // var o = mytest();
+            // Console.WriteLine(o);
+            
+            //Console.WriteLine("for(){\r\n\taa\r\n}");
         }
     }
 }
