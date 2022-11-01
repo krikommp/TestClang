@@ -62,7 +62,7 @@ namespace ConsoleApp1.TemplateEngine
             string regexBadUnopened = @"(?<error>((?!<%).)*%>)";
             string regexText = @"(?<text>((?!<%).)+)";
             string regexNoCode = @"(?<nocode><%=?%>)";
-            string regexSingleCode = @"*<%(?<singleCode>[^=]((?!<%|%>).)*)%>\r\n";
+            string regexSingleCode = @"\n<%(?<singleCode>[^=]((?!<%|%>).)*)%>\r\n";
             string regexCode = @"<%(?<code>[^=]((?!<%|%>).)*)%>";
             string regexEval = @"<%=(?<eval>((?!<%|%>).)*)%>";
             string regexBadUnclosed = @"(?<error><%.*)";
@@ -71,7 +71,6 @@ namespace ConsoleApp1.TemplateEngine
             return '(' + regexBadUnopened
                        + '|' + regexText
                        + '|' + regexNoCode
-                       + '|' + regexSingleCode
                        + '|' + regexCode
                        + '|' + regexEval
                        + '|' + regexBadUnclosed
@@ -84,7 +83,7 @@ namespace ConsoleApp1.TemplateEngine
         /// </summary>
         /// <returns>Resulting string.</returns>
         /// <param name="input">Input string.</param>
-        static string EscapeString(string input)
+        public static string EscapeString(string input)
         {
             var output = input
                 .Replace("\\", @"\\")
@@ -151,6 +150,87 @@ namespace ConsoleApp1.TemplateEngine
 
             return "\"" + value.Replace("\"", "\\\"") + "\"";
         }
+        
+        public static string AlignEval(string code, List<string> content)
+        {
+            if (code.Contains('\n'))
+            {
+                var ary = new List<char>();
+                int lastIndex = content.Count - 1;
+                while (lastIndex > 0)
+                {
+                    if (content[lastIndex].Contains('\n'))
+                    {
+                        var charArray = content[lastIndex].ToCharArray();
+                        for (int lastCharIndex = charArray.Length - 1; lastCharIndex > 0; --lastCharIndex)
+                        {
+                            if (charArray[lastCharIndex].Equals('\n'))
+                            {
+                                break;
+                            }
+
+                            if (charArray[lastCharIndex].Equals('\t'))
+                            {
+                                ary.Add('\t');
+                            }
+                            else
+                            {
+                                ary.Add(' ');
+                            }
+                        }
+
+                        break;
+                    }
+                    else
+                    {
+                        var charArray = content[lastIndex].ToCharArray();
+                        for (int charIndex = 0; charIndex < charArray.Length; ++charIndex)
+                        {
+                            if (charArray[charIndex] == '\t')
+                            {
+                                ary.Add('\t');
+                            }
+                            else
+                            {
+                                ary.Add(' ');
+                            }
+                        }
+                    }
+
+                    --lastIndex;
+                }
+
+                string[] lines = code.Split('\n');
+                List<string> newLines = new List<string>();
+                newLines.Add(lines[0] + '\n');
+                int lineIndex = 1;
+                for (;lineIndex < lines.Length - 1; lineIndex++)
+                {
+                    if (lines[lineIndex].StartsWith("#pragma"))
+                    {
+                        newLines.Add(lines[lineIndex] + '\n');
+                    }
+                    else
+                    {
+                        newLines.Add(new string(ary.ToArray()) + lines[lineIndex] + '\n');
+                    }
+                }
+                if (lines[lineIndex].StartsWith("#pragma"))
+                {
+                    newLines.Add(lines[lineIndex]);
+                }
+                else
+                {
+                    newLines.Add(new string(ary.ToArray()) + lines[lineIndex]);
+                }
+
+                return string.Join(string.Empty, newLines);
+            }
+            else
+            {
+                return code;
+            }
+        }
 
         public static string ComposeCode(List<Chunk> chunks, Globals global)
         {
@@ -163,6 +243,61 @@ namespace ConsoleApp1.TemplateEngine
             }
 
             code.Append("var result = new List<string>();\r\n");
+
+            List<int> chunkIndexToSolve = new List<int>();
+            for (int index = 0; index < chunks.Count; ++index)
+            {
+                var chunk = chunks[index];
+                if (chunk.Type == TokenType.Code)
+                {
+                    bool bFrondLineFeed = false;
+                    bool bBehindLineFeed = false;
+                    if (index - 1 < 0 || Regex.IsMatch(chunks[index - 1].Text, @"\\r\\n([ \t\n\r])?"))
+                    {
+                        bFrondLineFeed = true;
+                    }
+
+                    if (index + 1 >= chunks.Count || Regex.IsMatch(chunks[index + 1].Text, @"\\r\\n.*"))
+                    {
+                        bBehindLineFeed = true;
+                    }
+
+                    if (bFrondLineFeed && bBehindLineFeed)
+                    {
+                        chunkIndexToSolve.Add(index);
+                    }
+                }
+            }
+
+            foreach (var index in chunkIndexToSolve)
+            {
+                int frontIndex = index - 1;
+               
+                if (frontIndex >= 0)
+                {
+                    int lastIndex = chunks[frontIndex].Text.LastIndexOf(@"\r\n", StringComparison.Ordinal);
+                    if (lastIndex + 4 <= chunks[frontIndex].Text.Length - 1)
+                    {
+                        chunks[frontIndex].Text = chunks[frontIndex].Text.Remove(lastIndex + 4);
+                    }
+                }
+            }
+            
+            foreach (var index in chunkIndexToSolve)
+            {
+                int behindIndex = index + 1;
+                if (behindIndex < chunks.Count)
+                {
+                    int headIndex = chunks[behindIndex].Text.IndexOf(@"\r\n", StringComparison.Ordinal) + 3;
+                    chunks[behindIndex].Text = chunks[behindIndex].Text.Remove(0, headIndex + 1);
+                }
+            }
+
+            foreach (var chunk in chunks)
+            {
+                Console.WriteLine(chunk.Text);
+            }
+
             for (int index = 0; index < chunks.Count; ++index)
             {
                 var chunk = chunks[index];
@@ -172,10 +307,7 @@ namespace ConsoleApp1.TemplateEngine
                         code.Append("result.Add(\"" + chunk.Text + "\");\r\n");
                         break;
                     case TokenType.Eval:
-                        code.Append("result.Add(Convert.ToString(" + chunk.Text + "));\r\n");
-                        break;
-                    case TokenType.SingleCode:
-                        code.Append(chunk.Text + "\r\n");
+                        code.Append("result.Add(CSharpTemplate.AlignEval(Convert.ToString(" + chunk.Text + "), result));\r\n");
                         break;
                     case TokenType.Code:
                         code.Append(chunk.Text + "\r\n");
@@ -193,6 +325,8 @@ namespace ConsoleApp1.TemplateEngine
         {
             global.Namespaces.Add("System");
             global.Namespaces.Add("System.Collections.Generic");
+            global.Namespaces.Add(typeof(CSharpTemplate).Namespace);
+            global.Assemblies.Add(typeof(CSharpTemplate).Assembly);
             foreach (var variable in global.Context.Values)
             {
                 Type t = variable.GetType();

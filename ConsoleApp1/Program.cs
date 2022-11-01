@@ -530,77 +530,42 @@ namespace ConsoleApp1
             return "Hello\nHello\nHello";
         }
 
+        static string GetRegexString()
+        {
+            string regexBadUnopened = @"(?<error>((?!<%).)*%>)";
+            string regexText = @"(?<text>((?!<%).)+)";
+            string regexNoCode = @"(?<nocode><%=?%>)";
+            string regexSingleCode = @"\n\t*<%(?<singleCode>[^=]((?!<%|%>).)*)%>\r";
+            string regexCode = @"<%(?<code>[^=]((?!<%|%>).)*)%>";
+            string regexEval = @"<%=(?<eval>((?!<%|%>).)*)%>";
+            string regexBadUnclosed = @"(?<error><%.*)";
+            string regexBadEmpty = @"(?<error>^$)";
+
+            return '(' + regexBadUnopened
+                       //+ '|' + regexText
+                       + '|' + regexNoCode
+                       + '|' + regexSingleCode
+                       + '|' + regexCode
+                       + '|' + regexEval
+                       + '|' + regexBadUnclosed
+                       + '|' + regexBadEmpty
+                       + ")*";
+        }
+
         public static string mytest()
         {
             var result = new List<string>();
-            result.Add("TT\nHeader = ");
-            {
-                var res = Convert.ToString(Program.TestLine());
-                if (!string.IsNullOrEmpty(res) && res.Contains('\n'))
-                {
-                    int alignCharCount = -1;
-                    if (result[^1].EndsWith('\n'))
-                    {
-                        var charArray = res.ToCharArray();
-                        for (int index = 0; index < charArray.Length; index++)
-                        {
-                            if (charArray[index].Equals('\n'))
-                            {
-                                alignCharCount++;
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        int lastIndex = result.Count - 1;
-                        while (lastIndex >= 0)
-                        {
-                            var findStr = result[lastIndex];
-                            if (findStr.Contains('\n'))
-                            {
-                                var charArray = findStr.ToCharArray();
-                                for (int charIndex = charArray.Length - 1; charIndex >= 0; --charIndex)
-                                {
-                                    if (charArray[charIndex].Equals('\n'))
-                                    {
-                                        alignCharCount = charArray.Length - (charIndex + 1);
-                                        break;
-                                    }
-                                }
-
-                                break;
-                            }
-
-                            lastIndex--;
-                        }
-                    }
-
-                    if (alignCharCount == -1)
-                    {
-                        alignCharCount = 0;
-                        foreach (var str in result)
-                        {
-                            alignCharCount += str.Length;
-                        }
-                    }
-
-                    var lines = res.Split('\n');
-                    lines[0] += '\n';
-                    for (int index = 1; index < lines.Length; ++index)
-                    {
-                        lines[index] = new string(' ', alignCharCount) + lines[index] + '\n';
-                    }
-
-                    res = string.Join(string.Empty, lines);
+            result.Add("AA\r\n");
+            for(int i = 0; i < 2; ++i){
+                result.Add("");
+                for(int j = 0; j < 2; ++j){
+                    result.Add("\t\tAA BB ");
+                    result.Add(CSharpTemplate.AlignEval(Convert.ToString(Program.TestLine()), result));
+                    result.Add("\r\n");
                 }
-
-                result.Add(res);
+                result.Add("");
             }
-
+            result.Add("BB");
             return string.Join(string.Empty, result);
         }
 
@@ -616,7 +581,7 @@ namespace ConsoleApp1
 
             // var o = mytest();
             // Console.WriteLine(o);
-            
+
             //Console.WriteLine("for(){\r\n\taa\r\n}");
         }
     }
